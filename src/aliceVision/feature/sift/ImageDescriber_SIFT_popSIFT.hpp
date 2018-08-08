@@ -34,15 +34,7 @@ public:
     : ImageDescriber()
     , _params(params)
     , _isOriented(isOriented)
-  {
-    // Process SIFT computation
-    cudaDeviceReset();
-
-    popsift::cuda::device_prop_t deviceInfo;
-    deviceInfo.set(0, true); //Use only the first device
-    //deviceInfo.print();
-    resetConfiguration();
-  }
+  {}
 
   /**
    * @brief Check if the image describer use CUDA
@@ -68,6 +60,8 @@ public:
    */
   EImageDescriberType getDescriberType() const override
   {
+    if(!_isOriented)
+      return EImageDescriberType::SIFT_UPRIGHT;
     return EImageDescriberType::SIFT;
   }
 
@@ -99,7 +93,7 @@ public:
   void setConfigurationPreset(EImageDescriberPreset preset) override
   {
     _params.setPreset(preset);
-    resetConfiguration();
+    _popSift.reset(nullptr); // reset by describe method
   }
 
   /**
@@ -125,21 +119,7 @@ public:
 
 private:
 
-  void resetConfiguration()
-  {
-    popsift::Config config;
-    config.setOctaves(_params._numOctaves);
-    config.setLevels(_params._numScales);
-    config.setDownsampling(_params._firstOctave);
-    config.setThreshold(_params._peakThreshold);
-    config.setEdgeLimit(_params._edgeThreshold);
-    config.setNormalizationMultiplier(9); // 2^9 = 512
-    config.setNormMode( _params._rootSift ? popsift::Config::RootSift : popsift::Config::Classic);
-    config.setFilterMaxExtrema(_params._maxTotalKeypoints);
-    config.setFilterSorting(popsift::Config::LargestScaleFirst);
-
-    _popSift.reset(new PopSift(config, popsift::Config::ExtractingMode, PopSift::FloatImages));
-  }
+  void resetConfiguration();
 
   SiftParams _params;
   bool _isOriented = true;

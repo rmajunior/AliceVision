@@ -23,31 +23,18 @@ set(fuseCut_files_sources
   VoxelsGrid.cpp
 )
 
-add_library(aliceVision_fuseCut
-  ${fuseCut_files_headers}
-  ${fuseCut_files_sources}
-)
-
-target_include_directories(aliceVision_fuseCut
-  PUBLIC $<BUILD_INTERFACE:${ALICEVISION_INCLUDE_DIR}>
-         $<BUILD_INTERFACE:${generatedDir}>
-         $<INSTALL_INTERFACE:include>
-)
-
-target_link_libraries(aliceVision_fuseCut
-  PUBLIC aliceVision_mvsData
-         aliceVision_mvsUtils
-         aliceVision_imageIO
-         aliceVision_mesh
-         Geogram::geogram
-         ${Boost_LIBRARIES}
-)
-
-set_property(TARGET aliceVision_fuseCut
-  PROPERTY FOLDER AliceVision/AliceVision
-)
-
-install(TARGETS aliceVision_fuseCut
-  DESTINATION lib
-  EXPORT aliceVision-targets
+alicevision_add_library(aliceVision_fuseCut
+  SOURCES ${fuseCut_files_headers} ${fuseCut_files_sources}
+  PUBLIC_LINKS
+    aliceVision_mvsData
+    aliceVision_mvsUtils
+    aliceVision_imageIO
+    aliceVision_mesh
+    aliceVision_system
+    Geogram::geogram
+    ${Boost_FILESYSTEM_LIBRARY}
+    ${Boost_GRAPH_LIBRARY}
+    ${Boost_CONTAINER_LIBRARY}
+  PRIVATE_LINKS
+    nanoflann
 )

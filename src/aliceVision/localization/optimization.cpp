@@ -5,13 +5,12 @@
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
 #include "optimization.hpp"
-#include "aliceVision/sfm/sfmDataIO.hpp"
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/sfm/BundleAdjustmentCeres.hpp>
 #include <aliceVision/numeric/numeric.hpp>
 #include <aliceVision/rig/ResidualError.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/Timer.hpp>
-
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
@@ -41,7 +40,7 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
   IndexT intrinsicID = 0;
     
   // Setup a tiny SfM scene with the corresponding 2D-3D data
-  sfm::SfMData tinyScene;
+  sfmData::SfMData tinyScene;
   
   // if we have only one camera just set the intrinsics group once for all
   if(allTheSameIntrinsics)
@@ -62,7 +61,7 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
     
     ALICEVISION_CERR("allTheSameIntrinsics mode: using the intrinsics of the " << intrinsicIndex << " result");
     
-    camera::PinholeRadialK3* currIntrinsics = &vec_localizationResult[intrinsicIndex].getIntrinsics();
+    camera::PinholeRadialK3* currIntrinsics = &vec_localizationResult.at(intrinsicIndex).getIntrinsics();
     
     if(b_no_distortion)
     {
@@ -113,10 +112,10 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
     
 //    ALICEVISION_LOG_DEBUG("\n*****\nView " << viewID);
     // view
-    std::shared_ptr<sfm::View> view = std::make_shared<sfm::View>("",viewID, intrinsicID, viewID);
+    std::shared_ptr<sfmData::View> view = std::make_shared<sfmData::View>("",viewID, intrinsicID, viewID);
     tinyScene.views.insert( std::make_pair(viewID, view));
     // pose
-    tinyScene.setPose(*view, currResult.getPose());
+    tinyScene.setPose(*view, sfmData::CameraPose(currResult.getPose()));
 
     
     if(!allTheSameIntrinsics)
@@ -141,7 +140,7 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
       // check if the point exists already
       if(tinyScene.structure.count(match.landmarkId))
       {
-        sfm::Landmark& landmark = tinyScene.structure.at(match.landmarkId);
+        sfmData::Landmark& landmark = tinyScene.structure.at(match.landmarkId);
         assert(landmark.descType == match.descType);
         // normally there should be no other features already associated to this
         // 3D point in this view
@@ -166,15 +165,15 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
         }
 
         // the 3D point exists already, add the observation
-        landmark.observations[viewID] =  sfm::Observation(feature, match.featId);
+        landmark.observations[viewID] =  sfmData::Observation(feature, match.featId);
       }
       else
       {
         // create a new 3D point
-        sfm::Landmark newLandmark;
+        sfmData::Landmark newLandmark;
         newLandmark.descType = match.descType;
         newLandmark.X = currResult.getPt3D().col(idx);
-        newLandmark.observations[viewID] = sfm::Observation(feature, match.featId);
+        newLandmark.observations[viewID] = sfmData::Observation(feature, match.featId);
         tinyScene.structure[match.landmarkId] = std::move(newLandmark);
       }
     }
@@ -182,8 +181,8 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
 
 //  {
 //    ALICEVISION_LOG_DEBUG("Number of 3D-2D associations before filtering " << tinyScene.structure.size());
-//    sfm::Landmarks &landmarks = tinyScene.structure;
-//    for(sfm::Landmarks::iterator it = landmarks.begin(), ite = landmarks.end(); it != ite;)
+//    sfmData::Landmarks &landmarks = tinyScene.structure;
+//    for(sfmData::Landmarks::iterator it = landmarks.begin(), ite = landmarks.end(); it != ite;)
 //    {
 //      if(it->second.observations.size() < 5)
 //      {
@@ -200,7 +199,7 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
     ALICEVISION_LOG_DEBUG("Number of 3D-2D associations " << tinyScene.structure.size());
     
     std::size_t maxObs = 0;
-    for(const auto landmark : tinyScene.GetLandmarks() )
+    for(const auto landmark : tinyScene.getLandmarks() )
     {
       if(landmark.second.observations.size() > maxObs)
         maxObs = landmark.second.observations.size();
@@ -208,7 +207,7 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
     namespace bacc = boost::accumulators;
     bacc::accumulator_set<std::size_t, bacc::stats<bacc::tag::mean, bacc::tag::min, bacc::tag::max, bacc::tag::sum > > stats;
     std::vector<std::size_t> hist(maxObs+1, 0);
-    for(const auto landmark : tinyScene.GetLandmarks() )
+    for(const auto landmark : tinyScene.getLandmarks() )
     {
       const std::size_t nobs = landmark.second.observations.size();
       assert(nobs < hist.size());
@@ -261,7 +260,7 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
   if(!outputFilename.empty())
   {
     const std::string outfile = outputFilename+".BEFORE.json";
-    if(!sfm::Save(tinyScene, outfile, sfm::ESfMData::ALL))
+    if(!sfmDataIO::Save(tinyScene, outfile, sfmDataIO::ESfMData::ALL))
       ALICEVISION_CERR("Could not save " << outfile);
   }
 
@@ -278,16 +277,16 @@ bool refineSequence(std::vector<LocalizationResult> & vec_localizationResult,
   if(b_BA_Status)
   {
     // get back the results and update the localization result with the refined pose
-    for(const auto &pose : tinyScene.GetPoses())
+    for(const auto &pose : tinyScene.getPoses())
     {
       const IndexT idPose = pose.first;
-      vec_localizationResult[idPose].setPose(pose.second);
+      vec_localizationResult[idPose].setPose(pose.second.getTransform());
     }
 
     if(!outputFilename.empty())
     {
       const std::string outfile = outputFilename+".AFTER.json";
-      if(!sfm::Save(tinyScene, outfile, sfm::ESfMData::ALL))
+      if(!sfmDataIO::Save(tinyScene, outfile, sfmDataIO::ESfMData::ALL))
         ALICEVISION_CERR("Could not save " << outfile);
     }
   }

@@ -7,38 +7,38 @@
 
 #pragma once
 
-#include <aliceVision/sfm/SfMData.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/geometry/Pose3.hpp>
 
 namespace aliceVision {
 namespace sfm {
 
-inline void getCommonViews(const SfMData& sfmDataA,
-                           const SfMData& sfmDataB,
+inline void getCommonViews(const sfmData::SfMData& sfmDataA,
+                           const sfmData::SfMData& sfmDataB,
                            std::vector<IndexT>& outIndexes)
 {
-  for(const auto& viewA: sfmDataA.GetViews())
+  for(const auto& viewA: sfmDataA.getViews())
   {
-    if(sfmDataB.GetViews().find(viewA.first) != sfmDataB.GetViews().end())
+    if(sfmDataB.getViews().find(viewA.first) != sfmDataB.getViews().end())
     {
       outIndexes.push_back(viewA.first);
     }
   }
 }
 
-inline void getCommonViewsWithPoses(const SfMData& sfmDataA,
-                                    const SfMData& sfmDataB,
+inline void getCommonViewsWithPoses(const sfmData::SfMData& sfmDataA,
+                                    const sfmData::SfMData& sfmDataB,
                                     std::vector<IndexT>& outIndexes)
 {
-  for(const auto& viewA: sfmDataA.GetViews())
+  for(const auto& viewA: sfmDataA.getViews())
   {
     // check there is a view with the same ID and both of them have pose and 
     // intrinsics defined
-    if(!sfmDataA.IsPoseAndIntrinsicDefined(viewA.second.get()))
+    if(!sfmDataA.isPoseAndIntrinsicDefined(viewA.second.get()))
       continue;
 
-    if(sfmDataB.GetViews().find(viewA.first) != sfmDataB.GetViews().end() &&
-       sfmDataB.IsPoseAndIntrinsicDefined(viewA.first))
+    if(sfmDataB.getViews().find(viewA.first) != sfmDataB.getViews().end() &&
+       sfmDataB.isPoseAndIntrinsicDefined(viewA.first))
     {
       outIndexes.push_back(viewA.first);
     }
@@ -55,8 +55,8 @@ inline void getCommonViewsWithPoses(const SfMData& sfmDataA,
  * @param[out] out_t output translation vector
  * @return true if it finds a similarity transformation
  */
-bool computeSimilarity(const SfMData& sfmDataA,
-                       const SfMData& sfmDataB,
+bool computeSimilarity(const sfmData::SfMData& sfmDataA,
+                       const sfmData::SfMData& sfmDataB,
                        double* out_S,
                        Mat3* out_R,
                        Vec3* out_t);
@@ -71,7 +71,7 @@ bool computeSimilarity(const SfMData& sfmDataA,
  * @param t translation
  * @param transformControlPoints
  */
-inline void applyTransform(SfMData& sfmData,
+inline void applyTransform(sfmData::SfMData& sfmData,
                            const double S,
                            const Mat3& R,
                            const Vec3& t,
@@ -79,12 +79,12 @@ inline void applyTransform(SfMData& sfmData,
 {
   for(auto& viewPair: sfmData.views)
   {
-    const View& view = *viewPair.second;
+    const sfmData::View& view = *viewPair.second;
     if(sfmData.existsPose(view))
     {
-      geometry::Pose3 pose = sfmData.getPose(view);
+      geometry::Pose3 pose = sfmData.getPose(view).getTransform();
       pose = pose.transformSRt(S, R, t);
-      sfmData.setPose(view, pose);
+      sfmData.setPose(view, sfmData::CameraPose(pose));
     }
   }
   
@@ -115,7 +115,7 @@ inline void applyTransform(SfMData& sfmData,
  * @param[out] out_R rotation
  * @param[out] out_t translation
  */
-void computeNewCoordinateSystemFromCameras(const SfMData& sfmData,
+void computeNewCoordinateSystemFromCameras(const sfmData::SfMData& sfmData,
                                            double& out_S,
                                            Mat3& out_R,
                                            Vec3& out_t);
@@ -133,7 +133,7 @@ void computeNewCoordinateSystemFromCameras(const SfMData& sfmData,
  * @param[out] out_R rotation
  * @param[out] out_t translation
  */
-void computeNewCoordinateSystemFromLandmarks(const SfMData& sfmData,
+void computeNewCoordinateSystemFromLandmarks(const sfmData::SfMData& sfmData,
                                              const std::vector<feature::EImageDescriberType>& imageDescriberTypes,
                                              double& out_S,
                                              Mat3& out_R,

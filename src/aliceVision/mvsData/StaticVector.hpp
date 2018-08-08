@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -69,15 +70,15 @@ public:
         _data.shrink_to_fit();
     }
 
-    void resizeAddIfNeeded(int nplanned, int ntoallocated)
+    void reserveAddIfNeeded(int nplanned, int ntoallocated)
     {
         if(size() + nplanned > capacity())
         {
-            resizeAdd(nplanned + ntoallocated);
+            reserveAdd(nplanned + ntoallocated);
         }
     }
 
-    void resizeAdd(int ntoallocated)
+    void reserveAdd(int ntoallocated)
     {
         _data.reserve(capacity() + ntoallocated);
     }

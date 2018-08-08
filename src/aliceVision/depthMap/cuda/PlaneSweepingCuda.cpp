@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -166,12 +167,16 @@ void ps_computeSimMapForRcTcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHos
                                      int width, int height, int scale, int CUDAdeviceNo, int ncamsAllocated, int scales,
                                      bool verbose, int wsh, float gammaC, float gammaP, float epipShift);
 
+/*
+ * unused, based on a buggy CUDA kernel
+ *
 extern void ps_computeRcTcPhotoErrMapReproject(
     CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<float4, 2>* osdpi_hmh,
     CudaHostMemoryHeap<float, 2>* oerr_hmh, CudaHostMemoryHeap<float, 2>* oderr_hmh,
     CudaHostMemoryHeap<float, 2>& rcDepthMap_hmh, CudaHostMemoryHeap<float, 2>& tcDepthMap_hmh, cameraStruct** cams,
     int ncams, int width, int height, int scale, int CUDAdeviceNo, int ncamsAllocated, int scales, bool verbose,
     int wsh, float gammaC, float gammaP, float depthMapShift);
+*/
 
 extern void ps_refineRcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, float* osimMap_hmh,
                                 float* rcDepthMap_hmh, int ntcsteps,
@@ -1356,6 +1361,7 @@ bool PlaneSweepingCuda::refineDepthMapReproject(StaticVector<float>* depthMap, S
     return true;
 }
 
+/*
 bool PlaneSweepingCuda::computeRcTcPhotoErrMapReproject(StaticVector<Point4d>* sdpiMap, StaticVector<float>* errMap,
                                                           StaticVector<float>* derrMap, StaticVector<float>* rcDepthMap,
                                                           StaticVector<float>* tcDepthMap, int rc, int tc, int wsh,
@@ -1431,6 +1437,7 @@ bool PlaneSweepingCuda::computeRcTcPhotoErrMapReproject(StaticVector<Point4d>* s
 
     return true;
 }
+*/
 
 bool PlaneSweepingCuda::computeSimMapForRcTcDepthMap(StaticVector<float>* oSimMap, StaticVector<float>* rcTcDepthMap,
                                                        int rc, int tc, int wsh, float gammaC, float gammaP,

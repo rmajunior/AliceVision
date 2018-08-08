@@ -1,4 +1,6 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
+// Copyright (c) 2013 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -15,8 +17,13 @@
 #include <cstdlib>
 #include <memory>
 
-using namespace std;
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
+
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -26,13 +33,14 @@ int main( int argc, char **argv )
 
   std::string verboseLevel = system::EVerboseLevel_enumToString(system::Logger::getDefaultVerboseLevel());
   std::string sfmDataFilename;
-  std::string featuresFolder;
-  std::string matchesFolder;
-  std::string describerTypesName = feature::EImageDescriberType_enumToString(feature::EImageDescriberType::SIFT);
-  std::string matchesGeometricModel = "f";
   std::string outputFolder ;
+  std::vector<std::string> featuresFolders;
+  std::vector<std::string> matchesFolders;
+  std::string describerTypesName = feature::EImageDescriberType_enumToString(feature::EImageDescriberType::SIFT);
   int selectionMethod;
   int imgRef;
+
+  // user optional parameters
 
   po::options_description allParams("AliceVision sfmColorHarmonize");
 
@@ -42,10 +50,10 @@ int main( int argc, char **argv )
       "SfMData file.")
     ("output,o", po::value<std::string>(&outputFolder)->required(),
       "Output path.")
-    ("featuresFolder,f", po::value<std::string>(&featuresFolder)->required(),
-      "Path to a folder containing the extracted features.")
-    ("matchesFolder,m", po::value<std::string>(&matchesFolder)->required(),
-      "Path to a folder in which computed matches are stored.")
+    ("featuresFolders,f", po::value<std::vector<std::string>>(&featuresFolders)->multitoken()->required(),
+      "Path to folder(s) containing the extracted features.")
+    ("matchesFolders,m", po::value<std::vector<std::string>>(&matchesFolders)->multitoken()->required(),
+      "Path to folder(s) in which computed matches are stored.")
     ("referenceImage", po::value<int>(&imgRef)->required(),
       "Reference image id.")
     ("selectionMethod", po::value<int>(&selectionMethod)->required(),
@@ -57,11 +65,6 @@ int main( int argc, char **argv )
   optionalParams.add_options()
     ("describerTypes,d", po::value<std::string>(&describerTypesName)->default_value(describerTypesName),
       feature::EImageDescriberType_informations().c_str());
-    ("matchesGeometricModel,g", po::value<std::string>(&matchesGeometricModel)->default_value(matchesGeometricModel),
-      "Matches geometric Model :\n"
-      "- f: fundamental matrix\n"
-      "- e: essential matrix\n"
-      "- h: homography matrix");
 
   po::options_description logParams("Log parameters");
   logParams.add_options()
@@ -118,9 +121,8 @@ int main( int argc, char **argv )
   aliceVision::system::Timer timer;
 
   ColorHarmonizationEngineGlobal colorHarmonizeEngine(sfmDataFilename,
-    featuresFolder,
-    matchesFolder,
-    matchesGeometricModel,
+    featuresFolders,
+    matchesFolders,
     outputFolder,
     describerTypes,
     selectionMethod,
@@ -128,12 +130,13 @@ int main( int argc, char **argv )
 
   if(colorHarmonizeEngine.Process())
   {
-    ALICEVISION_LOG_INFO(" ColorHarmonization took: " << timer.elapsed() << " s");
+    ALICEVISION_LOG_INFO("Color harmonization took: " << timer.elapsed() << " s");
     return EXIT_SUCCESS;
   }
   else
   {
-    ALICEVISION_LOG_ERROR("Something goes wrong in the process");
+    ALICEVISION_LOG_ERROR("Something goes wrong during the color harmonization process.");
   }
+
   return EXIT_FAILURE;
 }

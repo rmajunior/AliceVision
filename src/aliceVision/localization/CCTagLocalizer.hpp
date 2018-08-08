@@ -13,7 +13,7 @@
 #include <aliceVision/feature/feature.hpp>
 #include <aliceVision/feature/ImageDescriber.hpp>
 #include <aliceVision/feature/cctag/ImageDescriber_CCTAG.hpp>
-#include <aliceVision/sfm/SfMData.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/sfm/pipeline/localization/SfMLocalizer.hpp>
 #include <aliceVision/voctree/Database.hpp>
 
@@ -26,13 +26,15 @@ namespace localization {
 
 class CCTagLocalizer : public ILocalizer
 {
-  
   public:
+
   struct Parameters : public LocalizerParameters
   {
 
-    Parameters() : LocalizerParameters(), 
-      _nNearestKeyFrames(4) { }
+    Parameters()
+      : LocalizerParameters()
+      , _nNearestKeyFrames(4)
+    {}
     
     /// number of best matching images to retrieve from the database
     std::size_t _nNearestKeyFrames;
@@ -40,10 +42,10 @@ class CCTagLocalizer : public ILocalizer
   
 public:
   
-  CCTagLocalizer(const sfm::SfMData &sfmData,
+  CCTagLocalizer(const sfmData::SfMData &sfmData,
                  const std::string &descriptorsFolder);
    
-  void setCudaPipe( int i ) override;
+  void setCudaPipe(int i) override;
 
  /**
    * @brief Just a wrapper around the different localization algorithm, the algorith
@@ -58,7 +60,7 @@ public:
    * @param[in] imagePath Optional complete path to the image, used only for debugging purposes.
    * @return  true if the image has been successfully localized.
    */
-  bool localize(const image::Image<unsigned char> & imageGrey,
+  bool localize(const image::Image<float> & imageGrey,
                 const LocalizerParameters *parameters,
                 bool useInputIntrinsics,
                 camera::PinholeRadialK3 &queryIntrinsics,
@@ -84,7 +86,7 @@ public:
    * @param[out] rigPose The pose of the rig expressed as the pose of the main camera
    * @return true if the rig has been successfully localized.
    */
-  bool localizeRig(const std::vector<image::Image<unsigned char> > & vec_imageGrey,
+  bool localizeRig(const std::vector<image::Image<float>> & vec_imageGrey,
                    const LocalizerParameters *parameters,
                    std::vector<camera::PinholeRadialK3 > &vec_queryIntrinsics,
                    const std::vector<geometry::Pose3 > &vec_subPoses,
@@ -149,7 +151,7 @@ public:
 private:
   
   bool loadReconstructionDescriptors(
-    const sfm::SfMData & sfm_data,
+    const sfmData::SfMData & sfm_data,
     const std::string & feat_directory);
   
   // for each view index, it contains the cctag features and descriptors that have an

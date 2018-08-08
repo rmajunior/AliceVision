@@ -16,23 +16,21 @@ set(robustEstimation_files_headers
   ScoreEvaluator.hpp
 )
 
-# Sources
-set(robustEstimation_files_test
-  ""
+alicevision_add_interface(aliceVision_robustEstimation
+  SOURCES ${robustEstimation_files_headers}
+  LINKS
+    aliceVision_camera
+    aliceVision_feature
+    aliceVision_matching
+    aliceVision_numeric
+    aliceVision_system
 )
 
-add_library(aliceVision_robustEstimation INTERFACE)
-
-target_link_libraries(aliceVision_robustEstimation
-  INTERFACE ${LOG_LIB}
-)
-
-UNIT_TEST(aliceVision randSampling "aliceVision_robustEstimation")
-UNIT_TEST(aliceVision lineKernel   "aliceVision_robustEstimation")
-UNIT_TEST(aliceVision ransac       "aliceVision_robustEstimation")
-UNIT_TEST(aliceVision acRansac     "aliceVision_robustEstimation")
-UNIT_TEST(aliceVision loRansac     "aliceVision_robustEstimation")
-UNIT_TEST(aliceVision maxConsensus "aliceVision_robustEstimation")
-#UNIT_TEST(aliceVision leastMedianOfSquares        "aliceVision_robustEstimation")
-
-add_custom_target(aliceVision_robustEstimation_ide SOURCES ${robustEstimation_files_headers} ${robustEstimation_files_test})
+# Unit tests
+alicevision_add_test(randSampling_test.cpp NAME "robustEstimation_randSampling" LINKS aliceVision_robustEstimation)
+alicevision_add_test(lineKernel_test.cpp   NAME "robustEstimation_lineKernel"   LINKS aliceVision_robustEstimation)
+alicevision_add_test(ransac_test.cpp       NAME "robustEstimation_ransac"       LINKS aliceVision_robustEstimation)
+alicevision_add_test(acRansac_test.cpp     NAME "robustEstimation_acRansac"     LINKS aliceVision_robustEstimation)
+alicevision_add_test(loRansac_test.cpp     NAME "robustEstimation_loRansac"     LINKS aliceVision_robustEstimation)
+alicevision_add_test(maxConsensus_test.cpp NAME "robustEstimation_maxConsensus" LINKS aliceVision_robustEstimation)
+# alicevision_add_test(leastMedianOfSquares_test.cpp NAME "robustEstimation_leastMedianOfSquares" LINKS aliceVision_robustEstimation)

@@ -25,17 +25,16 @@ namespace sensorDB {
 
 bool parseDatabase(const std::string& databaseFilePath, std::vector<Datasheet>& databaseStructure)
 {
-  std::ifstream iFilein( databaseFilePath );
-  if(!iFilein || !fs::exists(databaseFilePath) || !fs::is_regular_file(databaseFilePath))
+  std::ifstream fileIn(databaseFilePath);
+  if(!fileIn || !fs::exists(databaseFilePath) || !fs::is_regular_file(databaseFilePath))
     return false;
 
   std::string line;
-  while(iFilein.good())
+  while(fileIn.good())
   {
-    getline( iFilein, line);
+    getline( fileIn, line);
     if(!line.empty())
     {
-      //std::stringstream sStream( line );
       if(line[0] != '#')
       {
         std::vector<std::string> values;
@@ -45,8 +44,9 @@ bool parseDatabase(const std::string& databaseFilePath, std::vector<Datasheet>& 
         {
           const std::string brand = values[0];
           const std::string model = values[1];
-          const double sensorSize = atof(values[2].c_str());
-          databaseStructure.push_back(Datasheet(brand, model, sensorSize));
+          const double sensorSize = std::stod(values[2]);
+
+          databaseStructure.emplace_back(brand, model, sensorSize);
         }
       }
     }
@@ -56,16 +56,14 @@ bool parseDatabase(const std::string& databaseFilePath, std::vector<Datasheet>& 
 
 bool getInfo(const std::string& brand, const std::string& model, const std::vector<Datasheet>& databaseStructure, Datasheet& datasheetContent)
 {
-  bool existInDatabase = false;
-
   Datasheet refDatasheet(brand, model, -1.);
-  std::vector<Datasheet>::const_iterator datasheet = std::find(databaseStructure.begin(), databaseStructure.end(), refDatasheet);
-  if(datasheet != databaseStructure.end())
-  {
-    datasheetContent = *datasheet;
-    existInDatabase = true;
-  }
-  return existInDatabase;
+  auto datasheet = std::find(databaseStructure.begin(), databaseStructure.end(), refDatasheet);
+
+  if(datasheet == databaseStructure.end())
+    return false;
+
+  datasheetContent = *datasheet;
+  return true;
 }
 
 } // namespace sensorDB

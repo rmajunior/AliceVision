@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -2490,6 +2491,7 @@ void ps_refineDepthMapReproject(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemo
     cudaUnbindTexture(t4tex);
 };
 
+#if 0
 void ps_computeRcTcPhotoErrMapReproject(
     CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<float4, 2>* osdpi_hmh,
     CudaHostMemoryHeap<float, 2>* oerr_hmh, CudaHostMemoryHeap<float, 2>* oderr_hmh,
@@ -2607,7 +2609,8 @@ void ps_computeRcTcPhotoErrMapReproject(
 
     if(verbose)
         printf("gpu elapsed time: %f ms \n", toc(tall));
-};
+}
+#endif
 
 void ps_computeSimMapsForNShiftsOfRcTcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr,
                                                CudaHostMemoryHeap<float2, 2>** odepthSimMaps_hmh, int ntcsteps,

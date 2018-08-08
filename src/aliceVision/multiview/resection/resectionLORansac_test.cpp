@@ -14,6 +14,7 @@
 #include <aliceVision/multiview/conditioning.hpp>
 #include <aliceVision/camera/camera.hpp>
 #include <aliceVision/sfm/sfm.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/geometry/Pose3.hpp>
 #include <aliceVision/numeric/numeric.hpp>
 
@@ -43,11 +44,12 @@ bool refinePoseAsItShouldbe(const Mat & pt3D,
                             const Mat & pt2D,
                             const std::vector<std::size_t> & vec_inliers,
                             camera::IntrinsicBase * intrinsics,
-                            geometry::Pose3 & pose,
+                            geometry::Pose3& pose,
                             bool b_refine_pose,
                             bool b_refine_intrinsic)
 {
   using namespace sfm;
+  using namespace sfmData;
 
   // Setup a tiny SfM scene with the corresponding 2D-3D data
   SfMData sfm_data;
@@ -55,7 +57,7 @@ bool refinePoseAsItShouldbe(const Mat & pt3D,
   std::shared_ptr<View> view = std::make_shared<View>("", 0, 0, 0);
   sfm_data.views.emplace(0, view);
   // pose
-  sfm_data.setPose(*view, pose);
+  sfm_data.setPose(*view, CameraPose(pose));
   // intrinsic (the shared_ptr does not take the ownership, will not release the input pointer)
   sfm_data.intrinsics[0] = std::shared_ptr<camera::IntrinsicBase>(intrinsics, [](camera::IntrinsicBase*)
   {
@@ -79,7 +81,7 @@ bool refinePoseAsItShouldbe(const Mat & pt3D,
   const bool b_BA_Status = bundle_adjustment_obj.Adjust(sfm_data, refineOptions);
   if(b_BA_Status)
   {
-    pose = sfm_data.getPose(*view);
+    pose = sfm_data.getPose(*view).getTransform();
   }
   return b_BA_Status;
 }

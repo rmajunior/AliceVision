@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -49,9 +50,9 @@ double MeshAnalyze::getRegionArea(int vertexIdInTriangle, int triId)
     }
     else
     {
-        Point3d A = (*pts)[(*tris)[triId].i[(vertexIdInTriangle + 0) % 3]];
-        Point3d B = (*pts)[(*tris)[triId].i[(vertexIdInTriangle + 1) % 3]];
-        Point3d C = (*pts)[(*tris)[triId].i[(vertexIdInTriangle + 2) % 3]];
+        Point3d A = (*pts)[(*tris)[triId].v[(vertexIdInTriangle + 0) % 3]];
+        Point3d B = (*pts)[(*tris)[triId].v[(vertexIdInTriangle + 1) % 3]];
+        Point3d C = (*pts)[(*tris)[triId].v[(vertexIdInTriangle + 2) % 3]];
         return (getCotanOfAngle(B, A, C) * (A - C).size2() + getCotanOfAngle(C, A, B) * (A - B).size2()) / 8.0;
     }
 }
@@ -60,7 +61,7 @@ int MeshAnalyze::getVertexIdInTriangleForPtId(int ptId, int triId)
 {
     for(int i = 0; i < 3; i++)
     {
-        if((*tris)[triId].i[i] == ptId)
+        if((*tris)[triId].v[i] == ptId)
         {
             return i;
         }

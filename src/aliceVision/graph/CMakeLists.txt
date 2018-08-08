@@ -7,20 +7,13 @@ set(graph_files_headers
   Triplet.hpp
 )
 
-# Sources
-set(graph_files_test
-  connectedComponent_test.cpp
-  triplet_test.cpp
+alicevision_add_interface(aliceVision_graph
+  SOURCES ${graph_files_headers}
+  LINKS
+    aliceVision_system
+    ${LEMON_LIBRARY}
 )
 
-add_library(aliceVision_graph INTERFACE)
-
-target_link_libraries(aliceVision_graph
-  INTERFACE ${LEMON_LIBRARY}
-            ${LOG_LIB}
-)
-
-UNIT_TEST(aliceVision connectedComponent "aliceVision_graph")
-UNIT_TEST(aliceVision triplet            "aliceVision_graph")
-
-add_custom_target(aliceVision_graph_ide SOURCES ${graph_files_headers} ${graph_files_test})
+# Unit tests
+alicevision_add_test(connectedComponent_test.cpp NAME "graph_connectedComponent" LINKS aliceVision_graph)
+alicevision_add_test(triplet_test.cpp            NAME "graph_triplet"            LINKS aliceVision_graph)

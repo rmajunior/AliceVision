@@ -1,9 +1,12 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2016 AliceVision contributors.
+// Copyright (c) 2012 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/sfm/sfm.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/image/all.hpp>
 
 #include <boost/program_options.hpp>
@@ -16,12 +19,18 @@
 #include <iterator>
 #include <iomanip>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
 using namespace aliceVision::camera;
 using namespace aliceVision::geometry;
 using namespace aliceVision::image;
-using namespace aliceVision::sfm;
+using namespace aliceVision::sfmData;
 using namespace aliceVision::feature;
+
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -80,11 +89,11 @@ bool exportToMVE2Format(
     // Prepare to write bundle file
     // Get cameras and features from AliceVision
     size_t cameraCount = 0;
-    for(const auto& view: sfm_data.GetViews())
-        if(sfm_data.IsPoseAndIntrinsicDefined(view.second.get()))
+    for(const auto& view: sfm_data.getViews())
+        if(sfm_data.isPoseAndIntrinsicDefined(view.second.get()))
             ++cameraCount;
     // Tally global set of feature landmarks
-    const Landmarks & landmarks = sfm_data.GetLandmarks();
+    const Landmarks & landmarks = sfm_data.getLandmarks();
     const size_t featureCount = std::distance(landmarks.begin(), landmarks.end());
     const std::string filename = "synth_0.out";
     std::cout << "Writing bundle (" << cameraCount << " cameras, "
@@ -94,18 +103,18 @@ bool exportToMVE2Format(
     out << cameraCount << " " << featureCount << "\n";
 
     // Export (calibrated) views as undistorted images
-    boost::progress_display my_progress_bar(sfm_data.GetViews().size());
+    boost::progress_display my_progress_bar(sfm_data.getViews().size());
     std::pair<int,int> w_h_image_size;
     Image<RGBColor> image, image_ud, thumbnail;
     std::string sOutViewIteratorDirectory;
     std::size_t view_index = 0;
     std::map<std::size_t, IndexT> viewIdToviewIndex;
-    for(Views::const_iterator iter = sfm_data.GetViews().begin();
-      iter != sfm_data.GetViews().end(); ++iter, ++my_progress_bar)
+    for(Views::const_iterator iter = sfm_data.getViews().begin();
+      iter != sfm_data.getViews().end(); ++iter, ++my_progress_bar)
     {
       const View * view = iter->second.get();
 
-      if (!sfm_data.IsPoseAndIntrinsicDefined(view))
+      if (!sfm_data.isPoseAndIntrinsicDefined(view))
         continue;
 
       viewIdToviewIndex[view->getViewId()] = view_index;
@@ -124,7 +133,7 @@ bool exportToMVE2Format(
       const std::string srcImage = view->getImagePath();
       const std::string dstImage = (fs::path(sOutViewIteratorDirectory) / "undistorted.png").string();
 
-      Intrinsics::const_iterator iterIntrinsic = sfm_data.GetIntrinsics().find(view->getIntrinsicId());
+      Intrinsics::const_iterator iterIntrinsic = sfm_data.getIntrinsics().find(view->getIntrinsicId());
       const IntrinsicBase * cam = iterIntrinsic->second.get();
       if (cam->isValid() && cam->have_disto())
       {
@@ -149,11 +158,11 @@ bool exportToMVE2Format(
       }
 
       // Prepare to write an MVE 'meta.ini' file for the current view
-      const Pose3 pose = sfm_data.getPose(*view);
+      const Pose3 pose = sfm_data.getPose(*view).getTransform();
       const Pinhole * pinhole_cam = static_cast<const Pinhole *>(cam);
 
-      const Mat3 rotation = pose.rotation();
-      const Vec3 translation = pose.translation();
+      const Mat3& rotation = pose.rotation();
+      const Vec3& translation = pose.translation();
       // Pixel aspect: assuming square pixels
       const float pixelAspect = 1.f;
       // Focal length and principal point must be normalized (0..1)
@@ -289,17 +298,18 @@ int main(int argc, char *argv[])
     fs::create_directory(outDirectory);
 
   // Read the input SfM scene
-  SfMData sfm_data;
-  if (!Load(sfm_data, sfmDataFilename, ESfMData(ALL))) {
+  SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData::ALL))
+  {
     std::cerr << std::endl
       << "The input SfMData file \""<< sfmDataFilename << "\" cannot be read." << std::endl;
     return EXIT_FAILURE;
   }
 
-  if (exportToMVE2Format(sfm_data, (fs::path(outDirectory) / "MVE").string()))
-    return( EXIT_SUCCESS );
+  if (exportToMVE2Format(sfmData, (fs::path(outDirectory) / "MVE").string()))
+    return EXIT_SUCCESS;
   else
-    return( EXIT_FAILURE );
+    return EXIT_FAILURE;
 }
 
 /// Naive image bilinear resampling of an image for thumbnail generation

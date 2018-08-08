@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -28,7 +29,7 @@ public:
     bool doVisualize;
 
     VoxelsGrid();
-    VoxelsGrid(const Voxel& dimmensions, Point3d* _space, mvsUtils::MultiViewParams* _mp, mvsUtils::PreMatchCams* _pc,
+    VoxelsGrid(const Voxel& dimensions, Point3d* _space, mvsUtils::MultiViewParams* _mp, mvsUtils::PreMatchCams* _pc,
                const std::string& _spaceRootDir, bool _doVisualize = false);
     ~VoxelsGrid();
 

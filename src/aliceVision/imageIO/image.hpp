@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -150,6 +151,15 @@ void convolveImage(int inWidth, int inHeight, const std::vector<unsigned char>& 
 void convolveImage(int inWidth, int inHeight, const std::vector<rgb>& inBuffer, std::vector<rgb>& outBuffer, const std::string& kernel = "gaussian", float kernelWidth = 5.0f, float kernelHeight = 5.0f);
 void convolveImage(int inWidth, int inHeight, const std::vector<float>& inBuffer, std::vector<float>& outBuffer, const std::string& kernel = "gaussian", float kernelWidth = 5.0f, float kernelHeight = 5.0f);
 void convolveImage(int inWidth, int inHeight, const std::vector<Color>& inBuffer, std::vector<Color>& outBuffer, const std::string& kernel = "gaussian", float kernelWidth = 5.0f, float kernelHeight = 5.0f);
+
+/**
+ * @brief fill holes in a given image buffer with plausible values
+ * @param[in] inWidth The input image buffer width
+ * @param[in] inHeight The input image buffer height
+ * @param[in,out] colorBuffer The image buffer to fill
+ * @param[in] alphaBuffer The input alpha buffer containing 0.0/1.0 for empty/valid pixels
+ */
+void fillHoles(int inWidth, int inHeight, std::vector<Color>& colorBuffer, const std::vector<float>& alphaBuffer);
 
 } // namespace imageIO
 } // namespace aliceVision

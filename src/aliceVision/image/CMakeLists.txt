@@ -25,40 +25,24 @@ set(image_files_sources
   io.cpp
 )
 
-add_library(aliceVision_image
-  ${image_files_headers}
-  ${image_files_sources}
+alicevision_add_library(aliceVision_image
+  SOURCES ${image_files_headers} ${image_files_sources}
+  PUBLIC_LINKS
+    aliceVision_numeric
+    ${OPENIMAGEIO_LIBRARIES}
+  PRIVATE_LINKS
+    aliceVision_system
+    ${OPENEXR_LIBRARIES}
+    ${Boost_FILESYSTEM_LIBRARY}
+  PUBLIC_INCLUDE_DIRS
+    ${OPENIMAGEIO_INCLUDE_DIRS}
+  PRIVATE_INCLUDE_DIRS
+    ${OPENEXR_INCLUDE_DIR}
 )
 
-target_include_directories(aliceVision_image
-  PUBLIC ${OPENIMAGEIO_INCLUDE_DIRS}
-  PRIVATE ${OPENEXR_INCLUDE_DIR}
-)
-
-target_link_libraries(aliceVision_image
-  PUBLIC aliceVision_numeric
-         ${OPENIMAGEIO_LIBRARIES}
-
-  PRIVATE ${OPENEXR_LIBRARIES}
-          ${LOG_LIB}
-          ${Boost_FILESYSTEM_LIBRARIES}
-          # dependency of Boost filesystem, not always declared depending on CMake version
-          ${Boost_SYSTEM_LIBRARIES}
-)
-
-set_target_properties(aliceVision_image
-  PROPERTIES SOVERSION ${ALICEVISION_VERSION_MAJOR}
-  VERSION "${ALICEVISION_VERSION_MAJOR}.${ALICEVISION_VERSION_MINOR}"
-)
-
-install(TARGETS aliceVision_image
-  DESTINATION lib
-  EXPORT aliceVision-targets
-)
-
-UNIT_TEST(aliceVision image      "aliceVision_image")
-UNIT_TEST(aliceVision drawing    "aliceVision_image")
-UNIT_TEST(aliceVision io         "aliceVision_image")
-UNIT_TEST(aliceVision filtering  "aliceVision_image")
-UNIT_TEST(aliceVision resampling "aliceVision_image")
-
+# Unit tests
+alicevision_add_test(image_test.cpp      NAME "image"            LINKS aliceVision_image)
+alicevision_add_test(io_test.cpp         NAME "image_io"         LINKS aliceVision_image)
+alicevision_add_test(drawing_test.cpp    NAME "image_drawing"    LINKS aliceVision_image)
+alicevision_add_test(filtering_test.cpp  NAME "image_filtering"  LINKS aliceVision_image)
+alicevision_add_test(resampling_test.cpp NAME "image_resampling" LINKS aliceVision_image)

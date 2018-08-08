@@ -153,7 +153,7 @@ bool LoadMatchFilePerImage(
     {
       #pragma omp critical
       {
-        ALICEVISION_LOG_DEBUG("Unable to load match file: " << matchFilename);
+        ALICEVISION_LOG_DEBUG("Unable to load match file: " << matchFilename << " in: " << folder);
       }
       continue;
     }
@@ -189,24 +189,19 @@ bool Load(
   const std::set<IndexT>& viewsKeysFilter,
   const std::vector<std::string>& folders,
   const std::vector<feature::EImageDescriberType>& descTypesFilter,
-  const std::string& mode,
   const int maxNbMatches)
 {
   bool res = false;
-  const std::string fileName = "matches." + mode + ".txt";
+  const std::string fileName = "matches.txt";
 
   for(const std::string& folder : folders)
   {
     const fs::path filePath = fs::path(folder) / fileName;
 
     if(fs::exists(filePath))
-    {
       res = LoadMatchFile(matches, filePath.string());
-    }
     else
-    {
       res = LoadMatchFilePerImage(matches, viewsKeysFilter, folder, fileName);
-    }
   }
 
   if(!res)
@@ -263,8 +258,7 @@ private:
         for(const auto& m: matchesPerDesc)
         {
           stream << feature::EImageDescriberType_enumToString(m.first) << " " << m.second.size() << '\n';
-          copy(m.second.begin(), m.second.end(),
-               std::ostream_iterator<IndMatch>(stream, "\n"));
+          copy(m.second.begin(), m.second.end(), std::ostream_iterator<IndMatch>(stream, "\n"));
         }
       }
     }
@@ -282,25 +276,19 @@ public:
     , m_directory(folder)
     , m_filename(filename)
     , m_ext(fs::extension(filename))
-  {
-  }
+  {}
 
   ~MatchExporter()
-  {
-  }
+  {}
   
   void saveGlobalFile()
   {
     const std::string filepath = (fs::path(m_directory) / m_filename).string();
 
     if(m_ext == ".txt")
-    {
       saveTxt(filepath, m_matches.begin(), m_matches.end());
-    }
     else
-    {
       throw std::runtime_error(std::string("Unknown matching file format: ") + m_ext);
-    }
   }
 
   /// Export matches into separate files, one for each image.
@@ -318,20 +306,15 @@ public:
     {
       PairwiseMatches::const_iterator match = matchBegin;
       while(match->first.first == key && match != matchEnd)
-      {
         ++match;
-      }
       const std::string filepath = (fs::path(m_directory) / (std::to_string(key) + "." + m_filename)).string();
       ALICEVISION_LOG_DEBUG("Export Matches in: " << filepath);
       
       if(m_ext == ".txt")
-      {
         saveTxt(filepath, matchBegin, match);
-      }
       else
-      {
         throw std::runtime_error(std::string("Unknown matching file format: ") + m_ext);
-      }
+
       matchBegin = match;
     }
   }
@@ -347,16 +330,17 @@ public:
 bool Save(
   const PairwiseMatches & matches,
   const std::string & folder,
-  const std::string & mode,
   const std::string & extension,
   bool matchFilePerImage)
 {
-  const std::string filename = "matches." + mode + "." + extension;
+  const std::string filename = "matches." + extension;
   MatchExporter exporter(matches, folder, filename);
+
   if(matchFilePerImage)
     exporter.saveOneFilePerImage();
   else
     exporter.saveGlobalFile();
+
   return true;
 }
 

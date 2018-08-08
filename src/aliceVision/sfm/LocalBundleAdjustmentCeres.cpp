@@ -1,6 +1,5 @@
 // This file is part of the AliceVision project.
-// Copyright (c) 2016 AliceVision contributors.
-// Copyright (c) 2012 openMVG contributors.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -67,7 +66,7 @@ LocalBundleAdjustmentCeres::LocalBundleAdjustmentCeres(const LocalBundleAdjustme
     _LBAStatistics(newReconstructedViews, localBA_data.getDistancesHistogram())
 {}
 
-bool LocalBundleAdjustmentCeres::Adjust(SfMData& sfm_data, const LocalBundleAdjustmentData& localBA_data)
+bool LocalBundleAdjustmentCeres::Adjust(sfmData::SfMData& sfm_data, const LocalBundleAdjustmentData& localBA_data)
 {
   //----------
   // Steps:
@@ -92,7 +91,7 @@ bool LocalBundleAdjustmentCeres::Adjust(SfMData& sfm_data, const LocalBundleAdju
   
   // 1. Generate parameter block with all the poses & intrinsics
   // Add Poses data to the Ceres problem as Parameter Blocks (do not take care of Local BA strategy)
-  map_posesBlocks = addPosesToCeresProblem(sfm_data.GetPoses(), problem);
+  map_posesBlocks = addPosesToCeresProblem(sfm_data.getPoses(), problem);
   
   // Add Intrinsics data to the Ceres problem as Parameter Blocks (do not take care of Local BA strategy)
   map_intrinsicsBlocks = addIntrinsicsToCeresProblem(sfm_data, problem);
@@ -108,12 +107,12 @@ bool LocalBundleAdjustmentCeres::Adjust(SfMData& sfm_data, const LocalBundleAdju
   {             
     IndexT landmarkId = landmarkIt.first;
     
-    const Observations & observations = landmarkIt.second.observations;
+    const sfmData::Observations & observations = landmarkIt.second.observations;
     // Iterate over 2D observation associated to the 3D landmark
-    for (const auto& observationIt: observations)
+    for(const auto& observationIt: observations)
     {
       // Build the residual block corresponding to the track observation:
-      const View * view = sfm_data.views.at(observationIt.first).get();
+      const sfmData::View * view = sfm_data.views.at(observationIt.first).get();
       IndexT intrinsicId = view->getIntrinsicId();
       IndexT poseId = view->getPoseId();
       
@@ -121,8 +120,8 @@ bool LocalBundleAdjustmentCeres::Adjust(SfMData& sfm_data, const LocalBundleAdju
       // have been set as Ignored by the Local BA strategy
       if (_LBAOptions.isLocalBAEnabled())
       {
-        if (localBA_data.getPoseState(poseId) == LocalBundleAdjustmentData::EState::ignored 
-            || localBA_data.getIntrinsicState(intrinsicId) == LocalBundleAdjustmentData::EState::ignored 
+        if (localBA_data.getPosestate(poseId) == LocalBundleAdjustmentData::EState::ignored 
+            || localBA_data.getIntrinsicstate(intrinsicId) == LocalBundleAdjustmentData::EState::ignored 
             || localBA_data.getLandmarkState(landmarkId) == LocalBundleAdjustmentData::EState::ignored)
         {
           continue;
@@ -152,8 +151,8 @@ bool LocalBundleAdjustmentCeres::Adjust(SfMData& sfm_data, const LocalBundleAdju
         // Set to constant parameters previoously set as Constant by the Local BA strategy
         if (_LBAOptions.isLocalBAEnabled())
         {
-          if (localBA_data.getIntrinsicState(intrinsicId) == LocalBundleAdjustmentData::EState::constant)  problem.SetParameterBlockConstant(intrinsicBlock);        
-          if (localBA_data.getPoseState(poseId) == LocalBundleAdjustmentData::EState::constant)            problem.SetParameterBlockConstant(poseBlock);
+          if (localBA_data.getIntrinsicstate(intrinsicId) == LocalBundleAdjustmentData::EState::constant)  problem.SetParameterBlockConstant(intrinsicBlock);        
+          if (localBA_data.getPosestate(poseId) == LocalBundleAdjustmentData::EState::constant)            problem.SetParameterBlockConstant(poseBlock);
           if (localBA_data.getLandmarkState(landmarkId) == LocalBundleAdjustmentData::EState::constant)    problem.SetParameterBlockConstant(landmarkBlock);
         } 
         // Create a residual block:
@@ -205,7 +204,7 @@ bool LocalBundleAdjustmentCeres::Adjust(SfMData& sfm_data, const LocalBundleAdju
   
   // 5. Update the scene with the new poses & intrinsics (set to Refine)  
   // Update camera poses with refined data
-  updateCameraPoses(map_posesBlocks, localBA_data, sfm_data.GetPoses());
+  updateCameraPoses(map_posesBlocks, localBA_data, sfm_data.getPoses());
   
   // Update camera intrinsics with refined data
   updateCameraIntrinsics(map_intrinsicsBlocks, localBA_data, sfm_data.intrinsics);
@@ -301,20 +300,20 @@ bool LocalBundleAdjustmentCeres::exportStatistics(const std::string& dir, const 
 }
 
 std::map<IndexT, std::vector<double> > LocalBundleAdjustmentCeres::addPosesToCeresProblem(
-    const Poses & poses,
+    const sfmData::Poses & poses,
     ceres::Problem & problem)
 {
   // Data wrapper for refinement:
   std::map<IndexT, std::vector<double> > map_poses;
   
   // Setup Poses data 
-  for (Poses::const_iterator itPose = poses.begin(); itPose != poses.end(); ++itPose)
+  for (sfmData::Poses::const_iterator itPose = poses.begin(); itPose != poses.end(); ++itPose)
   {
     const IndexT poseId = itPose->first;
     
-    const Pose3 & pose = itPose->second;
-    const Mat3 R = pose.rotation();
-    const Vec3 t = pose.translation();
+    const sfmData::CameraPose& cameraPose = itPose->second;
+    const Mat3& R = cameraPose.getTransform().rotation();
+    const Vec3& t = cameraPose.getTransform().translation();
     
     double angleAxis[3];
     ceres::RotationMatrixToAngleAxis((const double*)R.data(), angleAxis);
@@ -328,22 +327,25 @@ std::map<IndexT, std::vector<double> > LocalBundleAdjustmentCeres::addPosesToCer
     
     double * parameter_block = &map_poses[poseId][0];
     problem.AddParameterBlock(parameter_block, 6);
+
+    if(cameraPose.isLocked()) //set the whole parameter block as constant.
+      problem.SetParameterBlockConstant(parameter_block);
   }
   return map_poses;
 }
 
 std::map<IndexT, std::vector<double>> LocalBundleAdjustmentCeres::addIntrinsicsToCeresProblem(
-    const SfMData & sfm_data,
+    const sfmData::SfMData & sfm_data,
     ceres::Problem & problem)
 {
   std::map<IndexT, std::size_t> intrinsicsUsage;
   
   // Setup Intrinsics data 
   // Count the number of reconstructed views per intrinsic
-  for(const auto& itView: sfm_data.GetViews())
+  for(const auto& itView: sfm_data.getViews())
   {
-    const View* view = itView.second.get();
-    if (sfm_data.IsPoseAndIntrinsicDefined(view))
+    const sfmData::View* view = itView.second.get();
+    if (sfm_data.isPoseAndIntrinsicDefined(view))
     {
       if(intrinsicsUsage.find(view->getIntrinsicId()) == intrinsicsUsage.end())
         intrinsicsUsage[view->getIntrinsicId()] = 1;
@@ -358,7 +360,7 @@ std::map<IndexT, std::vector<double>> LocalBundleAdjustmentCeres::addIntrinsicsT
   }
   
   std::map<IndexT, std::vector<double>> map_intrinsics;
-  for(const auto& itIntrinsic: sfm_data.GetIntrinsics())
+  for(const auto& itIntrinsic: sfm_data.getIntrinsics())
   {
     const IndexT intrinsicIds = itIntrinsic.first;
     
@@ -371,7 +373,14 @@ std::map<IndexT, std::vector<double>> LocalBundleAdjustmentCeres::addIntrinsicsT
     
     double * parameter_block = &map_intrinsics[intrinsicIds][0];
     problem.AddParameterBlock(parameter_block, map_intrinsics[intrinsicIds].size());
-    
+
+    if(itIntrinsic.second->isLocked())
+    {
+      //set the whole parameter block as constant.
+      problem.SetParameterBlockConstant(parameter_block);
+      continue;
+    }
+
     // Refine the focal length
     if(itIntrinsic.second->initialFocalLengthPix() > 0)
     {
@@ -450,9 +459,9 @@ bool LocalBundleAdjustmentCeres::solveBA(
 void LocalBundleAdjustmentCeres::updateCameraPoses(
     const std::map<IndexT, std::vector<double>> & map_poseblocks,
     const LocalBundleAdjustmentData& localBA_data,
-    Poses & poses)
+    sfmData::Poses & poses)
 {
-  for (Poses::iterator itPose = poses.begin();
+  for (sfmData::Poses::iterator itPose = poses.begin();
        itPose != poses.end(); ++itPose)
   {
     const IndexT poseId = itPose->first;
@@ -460,25 +469,25 @@ void LocalBundleAdjustmentCeres::updateCameraPoses(
     // Do not update a camera pose set as Ignored or Constant in the Local BA strategy
     if (_LBAOptions.isLocalBAEnabled() )
     {
-      if (localBA_data.getPoseState(poseId) == LocalBundleAdjustmentData::EState::ignored) 
+      if (localBA_data.getPosestate(poseId) == LocalBundleAdjustmentData::EState::ignored) 
         continue;
-      if (localBA_data.getPoseState(poseId) == LocalBundleAdjustmentData::EState::constant) 
+      if (localBA_data.getPosestate(poseId) == LocalBundleAdjustmentData::EState::constant) 
         continue;
     }
     
     Mat3 R_refined;
     ceres::AngleAxisToRotationMatrix(&map_poseblocks.at(poseId)[0], R_refined.data());
     Vec3 t_refined(map_poseblocks.at(poseId)[3], map_poseblocks.at(poseId)[4], map_poseblocks.at(poseId)[5]);
+
     // Update the pose
-    Pose3 & pose = itPose->second;
-    pose = Pose3(R_refined, -R_refined.transpose() * t_refined);
+    itPose->second.setTransform(Pose3(R_refined, -R_refined.transpose() * t_refined));
   }
 }
 
 void LocalBundleAdjustmentCeres::updateCameraIntrinsics(
     const std::map<IndexT, std::vector<double>> & map_intrinsicblocks,
     const LocalBundleAdjustmentData& localBA_data, 
-    Intrinsics & intrinsics)
+    sfmData::Intrinsics & intrinsics)
 {
   for (const auto& intrinsicsV: map_intrinsicblocks)
   {
@@ -487,9 +496,9 @@ void LocalBundleAdjustmentCeres::updateCameraIntrinsics(
     // Do not update an camera intrinsic set as Ignored or Constant in the Local BA strategy
     if (_LBAOptions.isLocalBAEnabled() )
     {
-      if (localBA_data.getIntrinsicState(intrinsicId) == LocalBundleAdjustmentData::EState::ignored) 
+      if (localBA_data.getIntrinsicstate(intrinsicId) == LocalBundleAdjustmentData::EState::ignored) 
         continue;
-      if (localBA_data.getIntrinsicState(intrinsicId) == LocalBundleAdjustmentData::EState::constant) 
+      if (localBA_data.getIntrinsicstate(intrinsicId) == LocalBundleAdjustmentData::EState::constant) 
         continue;
     }
     

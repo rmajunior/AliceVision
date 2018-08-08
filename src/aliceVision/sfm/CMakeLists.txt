@@ -14,31 +14,21 @@ set(sfm_files_headers
   pipeline/RelativePoseInfo.hpp
   pipeline/structureFromKnownPoses/StructureEstimationFromKnownPoses.hpp
   pipeline/regionsIO.hpp
-  sfm.hpp
-  SfMData.hpp
+  utils/alignment.hpp
+  utils/statistics.hpp
+  utils/syntheticScene.hpp
   BundleAdjustment.hpp
   BundleAdjustmentCeres.hpp
   LocalBundleAdjustmentCeres.hpp
   LocalBundleAdjustmentData.hpp
-  ResidualErrorFunctor.hpp
-  sfmDataFilters.hpp
   FrustumFilter.hpp
-  sfmDataIO.hpp
-  sfmDataIO_baf.hpp
-  sfmDataIO_gt.hpp
-  sfmDataIO_json.hpp
-  sfmDataIO_ply.hpp
-  sfmDataTriangulation.hpp
+  ResidualErrorFunctor.hpp
+  colorizeTracks.hpp
   filters.hpp
-  Landmark.hpp
   generateReport.hpp
-  View.hpp
-  viewIO.hpp
-  Rig.hpp
-  utils/alignment.hpp
-  utils/uid.hpp
-  utils/statistics.hpp
-  utils/syntheticScene.hpp
+  sfm.hpp
+  sfmFilters.hpp
+  sfmTriangulation.hpp
 )
 
 # Sources
@@ -52,81 +42,49 @@ set(sfm_files_sources
   pipeline/RelativePoseInfo.cpp
   pipeline/structureFromKnownPoses/StructureEstimationFromKnownPoses.cpp
   pipeline/regionsIO.cpp
-  SfMData.cpp
+  utils/alignment.cpp
+  utils/statistics.cpp
+  utils/syntheticScene.cpp
   BundleAdjustmentCeres.cpp
   LocalBundleAdjustmentCeres.cpp
   LocalBundleAdjustmentData.cpp
-  sfmDataFilters.cpp
   FrustumFilter.cpp
-  sfmDataIO.cpp
-  sfmDataIO_baf.cpp
-  sfmDataIO_gt.cpp
-  sfmDataIO_json.cpp
-  sfmDataIO_ply.cpp
-  sfmDataTriangulation.cpp
+  colorizeTracks.cpp
   generateReport.cpp
-  viewIO.cpp
-  utils/alignment.cpp
-  utils/uid.cpp
-  utils/statistics.cpp
-  utils/syntheticScene.cpp
+  sfmFilters.cpp
+  sfmTriangulation.cpp
 )
 
-if(ALICEVISION_HAVE_ALEMBIC)
-  list(APPEND sfm_files_headers
-    AlembicExporter.hpp
-    AlembicImporter.hpp
-  )
-  list(APPEND sfm_files_sources
-    AlembicExporter.cpp
-    AlembicImporter.cpp
-  )
-endif()
-
-add_library(aliceVision_sfm
-  ${sfm_files_headers}
-  ${sfm_files_sources}
+alicevision_add_library(aliceVision_sfm
+  SOURCES ${sfm_files_headers} ${sfm_files_sources}
+  PUBLIC_LINKS
+    aliceVision_system
+    aliceVision_numeric
+    aliceVision_multiview
+    aliceVision_geometry
+    aliceVision_camera
+    aliceVision_matching
+    aliceVision_feature
+    aliceVision_graph
+    aliceVision_track
+    aliceVision_lInftyComputerVision
+    aliceVision_linearProgramming
+    aliceVision_sfmData
+    aliceVision_sfmDataIO
+    ${Boost_FILESYSTEM_LIBRARY}
+    ${CERES_LIBRARIES}
 )
 
-target_link_libraries(aliceVision_sfm
-  PUBLIC
-  aliceVision_numeric
-  aliceVision_track
-  aliceVision_multiview
-  ${CERES_LIBRARIES}
-  aliceVision_lInftyComputerVision
-  aliceVision_system
-  aliceVision_matching
-  aliceVision_feature
-  aliceVision_geometry
-  aliceVision_track
-  ${Boost_LIBRARIES}
-  ${LOG_LIB}
+# Unit tests
+
+alicevision_add_test(bundleAdjustment_test.cpp
+  NAME "sfm_bundleAdjustment"
+  LINKS aliceVision_sfm
+        aliceVision_multiview
+        aliceVision_multiview_test_data
+        aliceVision_feature
+        aliceVision_system
 )
-
-set_target_properties(aliceVision_sfm
-  PROPERTIES SOVERSION ${ALICEVISION_VERSION_MAJOR}
-  VERSION "${ALICEVISION_VERSION_MAJOR}.${ALICEVISION_VERSION_MINOR}"
-)
-
-if(ALICEVISION_HAVE_ALEMBIC)
-  target_link_libraries(aliceVision_sfm
-    PRIVATE Alembic::Alembic
-  )
-endif()
-
-install(TARGETS aliceVision_sfm
-  DESTINATION lib
-  EXPORT aliceVision-targets
-)
-
-UNIT_TEST(aliceVision sfmDataIO          "aliceVision_feature;aliceVision_sfm;aliceVision_system")
-UNIT_TEST(aliceVision bundleAdjustment   "aliceVision_multiview_test_data;aliceVision_feature;aliceVision_multiview;aliceVision_sfm;aliceVision_system")
-UNIT_TEST(aliceVision rig                "aliceVision_feature;aliceVision_sfm;aliceVision_system")
-
-if(ALICEVISION_HAVE_ALEMBIC)
-  UNIT_TEST(aliceVision alembicIO "aliceVision_sfm;Alembic::Alembic")
-endif()
 
 add_subdirectory(pipeline)
 

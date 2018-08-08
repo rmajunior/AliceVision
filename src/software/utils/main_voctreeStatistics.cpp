@@ -1,9 +1,11 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2016 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/sfm/sfmDataIO.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/voctree/Database.hpp>
 #include <aliceVision/voctree/databaseIO.hpp>
 #include <aliceVision/voctree/VocabularyTree.hpp>
@@ -23,6 +25,11 @@
 #include <string>
 #include <chrono>
 #include <iomanip>
+
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
 
 static const int DIMENSION = 128;
 
@@ -78,7 +85,7 @@ int main(int argc, char** argv)
   bool withWeights = false;            // flag for the optional weights file
   std::string treeName;                     // the filename of the voctree
   std::string sfmDataFilename;              // the file containing the list of features to use to build the database
-  std::string featuresFolder;
+  std::vector<std::string> featuresFolders;
   std::string querySfmDataFilename = "";    // the file containing the list of features to use as query
   std::string distance;
 
@@ -94,8 +101,8 @@ int main(int argc, char** argv)
   po::options_description optionalParams("Optional parameters");
   optionalParams.add_options()
     ("weights,w", po::value<std::string>(&weightsName), "Input name for the weight file, if not provided the weights will be computed on the database built with the provided set")
-    ("featuresFolder,f", po::value<std::string>(&featuresFolder),
-        "Path to a folder containing the extracted features and descriptors. By default, it is the folder containing the SfMData.")
+    ("featuresFolders,f", po::value<std::vector<std::string>>(&featuresFolders)->multitoken(),
+      "Path to folder(s) containing the extracted features.")
     ("querySfmDataFilename,q", po::value<std::string>(&querySfmDataFilename), "Path to the SfMData file to be used for querying the database")
     ("distance,d",po::value<std::string>(&distance)->default_value(""), "Method used to compute distance between histograms: \n "
                                                                           "-classic: eucledian distance \n"
@@ -155,8 +162,8 @@ int main(int argc, char** argv)
           << tree.splits() << " branching factor");
 
   // load SfMData
-  sfm::SfMData sfmData;
-  if(!sfm::Load(sfmData, sfmDataFilename, sfm::ESfMData::ALL))
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData::ALL))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '" + sfmDataFilename + "' cannot be read.");
     return EXIT_FAILURE;
@@ -181,7 +188,7 @@ int main(int argc, char** argv)
   // read the descriptors and populate the database
   ALICEVISION_LOG_INFO("Reading descriptors from " << sfmDataFilename);
   auto detect_start = std::chrono::steady_clock::now();
-  size_t numTotFeatures = aliceVision::voctree::populateDatabase<DescriptorUChar>(sfmData, featuresFolder, tree, db);
+  size_t numTotFeatures = aliceVision::voctree::populateDatabase<DescriptorUChar>(sfmData, featuresFolders, tree, db);
   auto detect_end = std::chrono::steady_clock::now();
   auto detect_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(detect_end - detect_start);
 
@@ -206,14 +213,14 @@ int main(int argc, char** argv)
 
   ALICEVISION_LOG_INFO("Getting some stats for " << querySfmDataFilename);
 
-  sfm::SfMData querySfmData;
-  if(!sfm::Load(querySfmData, querySfmDataFilename, sfm::ESfMData::ALL))
+  sfmData::SfMData querySfmData;
+  if(!sfmDataIO::Load(querySfmData, querySfmDataFilename, sfmDataIO::ESfMData::ALL))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '" + querySfmDataFilename + "' cannot be read.");
     return EXIT_FAILURE;
   }
   
-  aliceVision::voctree::voctreeStatistics<DescriptorUChar>(querySfmData, featuresFolder, tree, db, distance, globalHisto);
+  aliceVision::voctree::voctreeStatistics<DescriptorUChar>(querySfmData, featuresFolders, tree, db, distance, globalHisto);
   
   std::cout << "-----------------" << std::endl;
   

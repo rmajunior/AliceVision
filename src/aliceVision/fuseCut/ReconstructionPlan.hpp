@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -33,8 +34,7 @@ public:
 };
 
 void reconstructAccordingToOptimalReconstructionPlan(int gl, LargeScale* ls);
-void reconstructSpaceAccordingToVoxelsArray(const std::string& voxelsArrayFileName, LargeScale* ls,
-                                            bool doComputeColoredMeshes);
+void reconstructSpaceAccordingToVoxelsArray(const std::string& voxelsArrayFileName, LargeScale* ls);
 mesh::Mesh* joinMeshes(const std::vector<std::string>& recsDirs, StaticVector<Point3d>* voxelsArray, LargeScale* ls);
 mesh::Mesh* joinMeshes(int gl, LargeScale* ls);
 mesh::Mesh* joinMeshes(const std::string& voxelsArrayFileName, LargeScale* ls);

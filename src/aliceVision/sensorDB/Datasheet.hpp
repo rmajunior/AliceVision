@@ -17,24 +17,23 @@ namespace sensorDB {
  */
 struct Datasheet
 {
-  Datasheet()
-  {}
+  Datasheet() = default;
 
   /**
    * @brief Datasheet Constructor
-   * @param brand
-   * @param model
-   * @param sensorSize
+   * @param[in] brand
+   * @param[in] model
+   * @param[in] sensorSize
    */
-  Datasheet( const std::string& brand,
-             const std::string& model,
-             const double& sensorSize ):
-                  _brand(brand),
-                  _model(model),
-                  _sensorSize(sensorSize)
+  Datasheet(const std::string& brand,
+            const std::string& model,
+            const double& sensorSize)
+    : _brand(brand)
+    , _model(model)
+    , _sensorSize(sensorSize)
   {}
 
-  bool operator==(const Datasheet& ds) const;
+  bool operator==(const Datasheet& other) const;
 
   std::string _brand;
   std::string _model;

@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -18,6 +19,9 @@ class PreMatchCams;
 } // namespace mvsUtils
 
 namespace mesh {
+
+
+void filterLargeEdgeTriangles(Mesh* me, float avelthr);
 
 void meshPostProcessing(Mesh*& inout_mesh, StaticVector<StaticVector<int>*>*& inout_ptsCams, StaticVector<int>& usedCams,
                       mvsUtils::MultiViewParams& mp, mvsUtils::PreMatchCams& pc,

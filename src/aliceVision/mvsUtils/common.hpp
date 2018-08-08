@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -30,7 +31,11 @@ void printfPercent(int i, int n);
 long initEstimate();
 void printfEstimate(int i, int n, long startTime);
 void finishEstimate();
-std::string printfElapsedTime(long t1, std::string prefix = "");
+std::string formatElapsedTime(long t1);
+inline void printfElapsedTime(long t1, std::string prefix = "")
+{
+    ALICEVISION_LOG_DEBUG(prefix << " " << formatElapsedTime(t1));
+}
 // SampleCnt calculates number of samples needed to be done
 int gaussKernelVoting(StaticVector<OrientedPoint*>* pts, float sigma);
 float angularDistnace(OrientedPoint* op1, OrientedPoint* op2);

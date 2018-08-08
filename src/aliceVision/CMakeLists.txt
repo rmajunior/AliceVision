@@ -23,6 +23,8 @@ if(ALICEVISION_BUILD_SFM)
   add_subdirectory(robustEstimation)
   add_subdirectory(sensorDB)
   add_subdirectory(sfm)
+  add_subdirectory(sfmData)
+  add_subdirectory(sfmDataIO)
   add_subdirectory(stl)
   add_subdirectory(track)
   add_subdirectory(voctree)
@@ -65,3 +67,6 @@ set(global_files_headers
 
 add_custom_target(aliceVision_global_headers_ide SOURCES ${global_files_headers})
 
+set_property(TARGET aliceVision_global_headers_ide
+  PROPERTY FOLDER AliceVision
+)

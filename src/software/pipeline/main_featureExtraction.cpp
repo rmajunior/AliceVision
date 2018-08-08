@@ -1,12 +1,13 @@
 ﻿// This file is part of the AliceVision project.
+// Copyright (c) 2015 AliceVision contributors.
+// Copyright (c) 2012 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/config.hpp>
 #include <aliceVision/alicevision_omp.hpp>
-#include <aliceVision/image/all.hpp>
-#include <aliceVision/sfm/sfm.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/feature/imageDescriberCommon.hpp>
 #include <aliceVision/feature/feature.hpp>
 #if ALICEVISION_IS_DEFINED(ALICEVISION_HAVE_POPSIFT) \
@@ -14,10 +15,12 @@
 #define ALICEVISION_HAVE_GPU_FEATURES
 #include <aliceVision/system/gpu.hpp>
 #endif
+#include <aliceVision/image/all.hpp>
 #include <aliceVision/system/MemoryInfo.hpp>
 #include <aliceVision/system/Timer.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
+#include <aliceVision/config.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -31,6 +34,11 @@
 #include <memory>
 #include <limits>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
 
 namespace po = boost::program_options;
@@ -40,13 +48,13 @@ class FeatureExtractor
 {
   struct ViewJob
   {
-    const sfm::View& view;
+    const sfmData::View& view;
     std::size_t memoryConsuption = 0;
     std::string outputBasename;
     std::vector<std::size_t> cpuImageDescriberIndexes;
     std::vector<std::size_t> gpuImageDescriberIndexes;
 
-    ViewJob(const sfm::View& view,
+    ViewJob(const sfmData::View& view,
             const std::string& outputFolder)
       : view(view)
       , outputBasename(fs::path(fs::path(outputFolder) / fs::path(std::to_string(view.getViewId()))).string())
@@ -95,7 +103,7 @@ class FeatureExtractor
 
 public:
 
-  explicit FeatureExtractor(const sfm::SfMData& sfmData)
+  explicit FeatureExtractor(const sfmData::SfMData& sfmData)
     : _sfmData(sfmData)
   {}
 
@@ -124,8 +132,8 @@ public:
   {
     // iteration on each view in the range in order
     // to prepare viewJob stack
-    sfm::Views::const_iterator itViewBegin = _sfmData.GetViews().begin();
-    sfm::Views::const_iterator itViewEnd = _sfmData.GetViews().end();
+    sfmData::Views::const_iterator itViewBegin = _sfmData.getViews().begin();
+    sfmData::Views::const_iterator itViewEnd = _sfmData.getViews().end();
 
     if(_rangeStart != -1)
     {
@@ -138,7 +146,7 @@ public:
 
     for(auto it = itViewBegin; it != itViewEnd; ++it)
     {
-      const sfm::View& view = *(it->second.get());
+      const sfmData::View& view = *(it->second.get());
       ViewJob viewJob(view, _outputFolder);
 
       viewJob.setImageDescribers(_imageDescribers);
@@ -159,13 +167,13 @@ public:
       ALICEVISION_LOG_DEBUG("Memory information: " << std::endl <<memoryInformation);
 
       if(jobMaxMemoryConsuption == 0)
-        throw std::runtime_error("Can't compute feature extraction job max memory consuption.");
+        throw std::runtime_error("Cannot compute feature extraction job max memory consumption.");
 
       std::size_t nbThreads =  (0.9 * memoryInformation.freeRam) / jobMaxMemoryConsuption;
 
       if(memoryInformation.freeRam == 0)
       {
-        ALICEVISION_LOG_WARNING("Can't find available system memory, this can be due to OS limitations.\n"
+        ALICEVISION_LOG_WARNING("Cannot find available system memory, this can be due to OS limitations.\n"
                                 "Use only one thread for CPU feature extraction.");
         nbThreads = 1;
       }
@@ -233,7 +241,7 @@ private:
     }
   }
 
-  const sfm::SfMData& _sfmData;
+  const sfmData::SfMData& _sfmData;
   std::vector<std::shared_ptr<feature::ImageDescriber>> _imageDescribers;
   std::string _outputFolder;
   int _rangeStart = -1;
@@ -258,7 +266,6 @@ int main(int argc, char **argv)
 
   std::string describerTypesName = feature::EImageDescriberType_enumToString(feature::EImageDescriberType::SIFT);
   std::string describerPreset = feature::EImageDescriberPreset_enumToString(feature::EImageDescriberPreset::NORMAL);
-  bool describersAreUpRight = false;
   int rangeStart = -1;
   int rangeSize = 1;
   int maxThreads = 0;
@@ -280,8 +287,6 @@ int main(int argc, char **argv)
     ("describerPreset,p", po::value<std::string>(&describerPreset)->default_value(describerPreset),
       "Control the ImageDescriber configuration (low, medium, normal, high, ultra).\n"
       "Configuration 'ultra' can take long time !")
-    ("upright,u", po::value<bool>(&describersAreUpRight)->default_value(describersAreUpRight),
-      "Use Upright feature.")
     ("forceCpuExtraction", po::value<bool>(&forceCpuExtraction)->default_value(forceCpuExtraction),
       "Use only CPU feature extraction methods.")
     ("rangeStart", po::value<int>(&rangeStart)->default_value(rangeStart),
@@ -351,8 +356,8 @@ int main(int argc, char **argv)
 #endif
 
   // load input scene
-  sfm::SfMData sfmData;
-  if(!sfm::Load(sfmData, sfmDataFilename, sfm::ESfMData(sfm::VIEWS|sfm::INTRINSICS)))
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData(sfmDataIO::VIEWS|sfmDataIO::INTRINSICS)))
   {
     ALICEVISION_LOG_ERROR("The input file '" + sfmDataFilename + "' cannot be read");
     return EXIT_FAILURE;
@@ -369,7 +374,7 @@ int main(int argc, char **argv)
   if(rangeStart != -1)
   {
     if(rangeStart < 0 || rangeSize < 0 ||
-       rangeStart > sfmData.GetViews().size())
+       rangeStart > sfmData.getViews().size())
     {
       ALICEVISION_LOG_ERROR("Range is incorrect");
       return EXIT_FAILURE;
@@ -389,7 +394,6 @@ int main(int argc, char **argv)
     {
       std::shared_ptr<feature::ImageDescriber> imageDescriber = feature::createImageDescriber(imageDescriberType);
       imageDescriber->setConfigurationPreset(describerPreset);
-      imageDescriber->setUpRight(describersAreUpRight);
       if(forceCpuExtraction)
         imageDescriber->setUseCuda(false);
 

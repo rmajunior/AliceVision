@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2016 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -12,8 +13,8 @@
 #include <aliceVision/image/io.hpp>
 #include <aliceVision/dataio/FeedProvider.hpp>
 #include <aliceVision/feature/ImageDescriber.hpp>
-#include <aliceVision/sfm/SfMData.hpp>
-#include <aliceVision/sfm/sfmDataIO.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/robustEstimation/estimators.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
@@ -35,15 +36,19 @@
 #include <memory>
 
 #if ALICEVISION_IS_DEFINED(ALICEVISION_HAVE_ALEMBIC)
-#include <aliceVision/sfm/AlembicExporter.hpp>
+#include <aliceVision/sfmDataIO/AlembicExporter.hpp>
 #endif // ALICEVISION_HAVE_ALEMBIC
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
+using namespace aliceVision;
 
 namespace bfs = boost::filesystem;
 namespace bacc = boost::accumulators;
 namespace po = boost::program_options;
-
-using namespace aliceVision;
 
 std::string myToString(std::size_t i, std::size_t zeroPadding)
 {
@@ -250,8 +255,8 @@ int main(int argc, char** argv)
   std::unique_ptr<localization::ILocalizer> localizer;
 
   // load SfMData
-  sfm::SfMData sfmData;
-  if(!sfm::Load(sfmData, sfmFilePath, sfm::ESfMData::ALL))
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmFilePath, sfmDataIO::ESfMData::ALL))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '" + sfmFilePath + "' cannot be read.");
     return EXIT_FAILURE;
@@ -307,8 +312,8 @@ int main(int argc, char** argv)
   }
 
 #if ALICEVISION_IS_DEFINED(ALICEVISION_HAVE_ALEMBIC)
-  sfm::AlembicExporter exporter(exportFile);
-  exporter.addLandmarks(localizer->getSfMData().GetLandmarks());
+  sfmDataIO::AlembicExporter exporter(exportFile);
+  exporter.addLandmarks(localizer->getSfMData().getLandmarks());
 #endif
 
   // Create a camera rig
@@ -355,7 +360,7 @@ int main(int argc, char** argv)
     //result.open(cameraResultFile);
     //pointsFile = inputFolder + "/points.txt";
 
-    image::Image<unsigned char> imageGrey;
+    image::Image<float> imageGrey;
     camera::PinholeRadialK3 queryIntrinsics;
     bool hasIntrinsics = false;
 
@@ -384,6 +389,7 @@ int main(int argc, char** argv)
                                           localizationResult);
       assert( ok == localizationResult.isValid() );
       vLocalizationResults.emplace_back(localizationResult);
+      sfmData::CameraPose pose(localizationResult.getPose());
       auto detect_end = std::chrono::steady_clock::now();
       auto detect_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(detect_end - detect_start);
       ALICEVISION_COUT("Localization took  " << detect_elapsed.count() << " [ms]");
@@ -393,16 +399,16 @@ int main(int argc, char** argv)
       if(localizationResult.isValid())
       {
         exporter.addCamera("camera"+std::to_string(idCamera)+"."+myToString(currentFrame,4),
-                           sfm::View(subMediaFilepath, currentFrame, currentFrame),
-                           &localizationResult.getPose(),
+                           sfmData::View(subMediaFilepath, currentFrame, currentFrame),
+                           &pose,
                            &queryIntrinsics);
       }
       else
       {
         // @fixme for now just add a fake camera so that it still can be see in MAYA
         exporter.addCamera("camera"+std::to_string(idCamera)+".V."+myToString(currentFrame,4),
-                           sfm::View(subMediaFilepath, currentFrame, currentFrame),
-                           &localizationResult.getPose(),
+                           sfmData::View(subMediaFilepath, currentFrame, currentFrame),
+                           &pose,
                            &queryIntrinsics);
       }
 #endif

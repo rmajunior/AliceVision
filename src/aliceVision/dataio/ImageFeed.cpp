@@ -5,8 +5,8 @@
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
 #include "ImageFeed.hpp"
-#include <aliceVision/sfm/SfMData.hpp>
-#include <aliceVision/sfm/sfmDataIO.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/image/io.hpp>
 
 #include <boost/filesystem.hpp>
@@ -95,7 +95,7 @@ private:
                      bool &hasIntrinsics)
   {
     // if there are no more images to process
-    if(_viewIterator == _sfmdata.GetViews().end())
+    if(_viewIterator == _sfmdata.getViews().end())
     {
       return false;
     }
@@ -103,19 +103,19 @@ private:
     namespace bf = boost::filesystem;
 
     // get the image
-    const sfm::View *view = _viewIterator->second.get();
+    const sfmData::View *view = _viewIterator->second.get();
     imageName = view->getImagePath();
     image::readImage(imageName, image);
 
     // get the associated Intrinsics
-    if((view->getIntrinsicId() == UndefinedIndexT) || (!_sfmdata.GetIntrinsics().count(view->getIntrinsicId())))
+    if((view->getIntrinsicId() == UndefinedIndexT) || (!_sfmdata.getIntrinsics().count(view->getIntrinsicId())))
     {
       ALICEVISION_LOG_DEBUG("Image "<< imageName << " does not have associated intrinsics");
       hasIntrinsics = false;
     }
     else
     {
-      const camera::IntrinsicBase * cam = _sfmdata.GetIntrinsics().at(view->getIntrinsicId()).get();
+      const camera::IntrinsicBase * cam = _sfmdata.getIntrinsics().at(view->getIntrinsicId()).get();
       if(cam->getType() != camera::EINTRINSIC::PINHOLE_CAMERA_RADIAL3)
       {
         ALICEVISION_LOG_WARNING("Only PinholeRadialK3 is supported");
@@ -145,12 +145,12 @@ private:
   camera::PinholeRadialK3 _camIntrinsics;
   
   bool _sfmMode = false;
-  sfm::SfMData _sfmdata;
-  sfm::Views::const_iterator _viewIterator;
+  sfmData::SfMData _sfmdata;
+  sfmData::Views::const_iterator _viewIterator;
   unsigned int _currentImageIndex = 0;
 };
 
-const std::vector<std::string> ImageFeed::FeederImpl::supportedExtensions = { ".jpg", ".jpeg", ".png", ".ppm" };
+const std::vector<std::string> ImageFeed::FeederImpl::supportedExtensions = {".jpg", ".jpeg", ".png", ".ppm", ".tif", ".tiff", ".exr"};
 
 bool ImageFeed::FeederImpl::isSupported(const std::string &ext)
 {
@@ -173,8 +173,8 @@ ImageFeed::FeederImpl::FeederImpl(const std::string& imagePath, const std::strin
     if(ext == ".json")
     {
       // load the json
-      _isInit = sfm::Load(_sfmdata, imagePath, sfm::ESfMData(sfm::ESfMData::VIEWS | sfm::ESfMData::INTRINSICS));
-      _viewIterator = _sfmdata.GetViews().begin();
+      _isInit = sfmDataIO::Load(_sfmdata, imagePath, sfmDataIO::ESfMData(sfmDataIO::ESfMData::VIEWS | sfmDataIO::ESfMData::INTRINSICS));
+      _viewIterator = _sfmdata.getViews().begin();
       _sfmMode = true;
     }
     // if it is an image file
@@ -290,7 +290,7 @@ std::size_t ImageFeed::FeederImpl::nbFrames() const
     return 0;
   
   if(_sfmMode)
-    return _sfmdata.GetViews().size();
+    return _sfmdata.getViews().size();
   
   return _images.size();
 }
@@ -307,14 +307,14 @@ bool ImageFeed::FeederImpl::goToFrame(const unsigned int frame)
   // Reconstruction mode
   if(_sfmMode)
   {
-    if(frame >= _sfmdata.GetViews().size())
+    if(frame >= _sfmdata.getViews().size())
     {
-      _viewIterator = _sfmdata.GetViews().end();
+      _viewIterator = _sfmdata.getViews().end();
       ALICEVISION_LOG_WARNING("The current frame is out of the range.");
       return false;
     }
 
-    _viewIterator = _sfmdata.GetViews().begin();
+    _viewIterator = _sfmdata.getViews().begin();
     std::advance(_viewIterator, frame);
   }
   else
@@ -335,10 +335,10 @@ bool ImageFeed::FeederImpl::goToNextFrame()
 {
   if(_sfmMode)
   {
-    if(_viewIterator == _sfmdata.GetViews().end())
+    if(_viewIterator == _sfmdata.getViews().end())
       return false;
     ++_viewIterator;
-    if(_viewIterator == _sfmdata.GetViews().end())
+    if(_viewIterator == _sfmdata.getViews().end())
       return false;
   }
   else
@@ -366,6 +366,14 @@ bool ImageFeed::readImage(image::Image<image::RGBColor> &imageRGB,
                      bool &hasIntrinsics)
 {
   return(_imageFeed->readImage(imageRGB, camIntrinsics, mediaPath, hasIntrinsics));
+}
+
+bool ImageFeed::readImage(image::Image<float> &imageGray,
+                     camera::PinholeRadialK3 &camIntrinsics,
+                     std::string &mediaPath,
+                     bool &hasIntrinsics)
+{
+  return(_imageFeed->readImage(imageGray, camIntrinsics, mediaPath, hasIntrinsics));
 }
 
 bool ImageFeed::readImage(image::Image<unsigned char> &imageGray, 

@@ -9,7 +9,7 @@
 
 #include <aliceVision/types.hpp>
 #include <aliceVision/system/Logger.hpp>
-#include <aliceVision/sfm/SfMData.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/matching/IndMatch.hpp>
 #include <aliceVision/matching/io.hpp>
 
@@ -24,27 +24,34 @@ namespace sfm {
  *
  * @param[out] out_pairwiseMatches
  * @param[in] sfmData
- * @param[in] folder
- * @param[in] matchesMode
+ * @param[in] folders Path(s) to folder(s) in which computed matches are stored.
+ * @param[in] descTypes ImageDescriberTypes used
+ * @param[in] maxNbMatches Maximum number of matches per image pair (and per feature type), 0 = no limit
+ * @param[in] useOnlyMatchesFromFolder If enabled, don't use sfmData matches folders
  */
 inline bool loadPairwiseMatches(
     matching::PairwiseMatches& out_pairwiseMatches,
-    const SfMData& sfmData,
-    const std::string& folder,
+    const sfmData::SfMData& sfmData,
+    const std::vector<std::string>& folders,
     const std::vector<feature::EImageDescriberType>& descTypes,
-    const std::string& matchesMode,
-    const int maxNbMatches = 0)
+    const int maxNbMatches = 0,
+    bool useOnlyMatchesFromFolder = false)
 {
-  std::vector<std::string> matchesFolders = sfmData.getMatchesFolders();
-  matchesFolders.emplace_back(folder);
+  std::vector<std::string> matchesFolders;
+
+  if(!useOnlyMatchesFromFolder)
+    matchesFolders = sfmData.getMatchesFolders();
+  else
+    ALICEVISION_LOG_DEBUG("Load only matches from given folder.");
+
+  matchesFolders.insert(matchesFolders.end(), folders.begin(), folders.end());
 
   ALICEVISION_LOG_DEBUG("Loading matches");
-  if (!matching::Load(out_pairwiseMatches, sfmData.GetViewsKeys(), matchesFolders, descTypes, matchesMode, maxNbMatches))
+  if (!matching::Load(out_pairwiseMatches, sfmData.getViewsKeys(), matchesFolders, descTypes, maxNbMatches))
   {
     std::stringstream ss("Unable to read the matches file(s) from:\n");
     for(const std::string& folder : matchesFolders)
       ss << "\t- " << folder << "\n";
-    ss << "(mode: " << matchesMode << ")\n";
     ALICEVISION_LOG_WARNING(ss.str());
     return false;
   }

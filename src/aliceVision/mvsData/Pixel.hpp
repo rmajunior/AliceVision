@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -85,9 +86,13 @@ struct Pixel
         };
     }
 
-    inline float size()
+    inline double size()
     {
-        return sqrt((float)(x * x + y * y));
+        return sqrt((double)(x * x + y * y));
+    }
+    inline int size2()
+    {
+        return x * x + y * y;
     }
 
     friend int dot(const Pixel& p1, const Pixel& p2)

@@ -18,11 +18,14 @@ namespace aliceVision {
 namespace voctree {
 
 template<class DescriptorT, class FileDescriptorT>
-size_t readDescFromFiles(const sfm::SfMData &sfmData, const std::string &descFolder, std::vector<DescriptorT>& descriptors, std::vector<size_t> &numFeatures)
+std::size_t readDescFromFiles(const sfmData::SfMData& sfmData,
+                         const std::vector<std::string>& featuresFolders,
+                         std::vector<DescriptorT>& descriptors,
+                         std::vector<std::size_t> &numFeatures)
 {
   namespace bfs = boost::filesystem;
   std::map<IndexT, std::string> descriptorsFiles;
-  getListOfDescriptorFiles(sfmData, descFolder, descriptorsFiles);
+  getListOfDescriptorFiles(sfmData, featuresFolders, descriptorsFiles);
   std::size_t numDescriptors = 0;
 
   // Allocate the memory by reading in a first time the files to get the number
@@ -58,7 +61,7 @@ size_t readDescFromFiles(const sfm::SfMData &sfmData, const std::string &descFol
 
   // Allocate the memory
   descriptors.reserve(numDescriptors);
-  size_t numDescriptorsCheck = numDescriptors; // for later check
+  std::size_t numDescriptorsCheck = numDescriptors; // for later check
   numDescriptors = 0;
 
   // Read the descriptors
@@ -70,7 +73,7 @@ size_t readDescFromFiles(const sfm::SfMData &sfmData, const std::string &descFol
   {
     // Read the descriptors and append them in the vector
     feature::loadDescsFromBinFile<DescriptorT, FileDescriptorT>(currentFile.second, descriptors, true);
-    size_t result = descriptors.size();
+    std::size_t result = descriptors.size();
 
     // Add the number of descriptors from this file
     numFeatures.push_back(result - numDescriptors);

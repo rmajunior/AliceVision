@@ -1,9 +1,12 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2016 AliceVision contributors.
+// Copyright (c) 2012 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/sfm/sfm.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/image/all.hpp>
 
 #include <boost/program_options.hpp>
@@ -16,11 +19,17 @@
 #include <iterator>
 #include <iomanip>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
 using namespace aliceVision::camera;
 using namespace aliceVision::geometry;
 using namespace aliceVision::image;
-using namespace aliceVision::sfm;
+using namespace aliceVision::sfmData;
+
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -57,22 +66,22 @@ bool exportToPMVSFormat(
 
   if (bOk)
   {
-    boost::progress_display my_progress_bar( sfm_data.GetViews().size()*2 );
+    boost::progress_display my_progress_bar( sfm_data.getViews().size()*2 );
 
     // Since PMVS requires contiguous camera index, and that some views can have some missing poses,
     // we reindex the poses to ensure a contiguous pose list.
     HashMap<IndexT, IndexT> map_viewIdToContiguous;
 
     // Export valid views as Projective Cameras:
-    for(Views::const_iterator iter = sfm_data.GetViews().begin();
-      iter != sfm_data.GetViews().end(); ++iter, ++my_progress_bar)
+    for(Views::const_iterator iter = sfm_data.getViews().begin();
+      iter != sfm_data.getViews().end(); ++iter, ++my_progress_bar)
     {
       const View * view = iter->second.get();
-      if (!sfm_data.IsPoseAndIntrinsicDefined(view))
+      if (!sfm_data.isPoseAndIntrinsicDefined(view))
         continue;
 
-      const Pose3 pose = sfm_data.getPose(*view);
-      Intrinsics::const_iterator iterIntrinsic = sfm_data.GetIntrinsics().find(view->getIntrinsicId());
+      const Pose3 pose = sfm_data.getPose(*view).getTransform();
+      Intrinsics::const_iterator iterIntrinsic = sfm_data.getIntrinsics().find(view->getIntrinsicId());
 
       // View Id re-indexing
       map_viewIdToContiguous.insert(std::make_pair(view->getViewId(), map_viewIdToContiguous.size()));
@@ -89,14 +98,14 @@ bool exportToPMVSFormat(
 
     // Export (calibrated) views as undistorted images
     Image<RGBColor> image, image_ud;
-    for(Views::const_iterator iter = sfm_data.GetViews().begin();
-      iter != sfm_data.GetViews().end(); ++iter, ++my_progress_bar)
+    for(Views::const_iterator iter = sfm_data.getViews().begin();
+      iter != sfm_data.getViews().end(); ++iter, ++my_progress_bar)
     {
       const View * view = iter->second.get();
-      if (!sfm_data.IsPoseAndIntrinsicDefined(view))
+      if (!sfm_data.isPoseAndIntrinsicDefined(view))
         continue;
 
-      Intrinsics::const_iterator iterIntrinsic = sfm_data.GetIntrinsics().find(view->getIntrinsicId());
+      Intrinsics::const_iterator iterIntrinsic = sfm_data.getIntrinsics().find(view->getIntrinsicId());
 
       // We have a valid view with a corresponding camera & pose
       const std::string srcImage = view->getImagePath();
@@ -148,8 +157,8 @@ bool exportToPMVSFormat(
     {
       std::map< IndexT, std::set<IndexT> > view_shared;
       // From the structure observations, list the putatives pairs (symmetric)
-      for (Landmarks::const_iterator itL = sfm_data.GetLandmarks().begin();
-        itL != sfm_data.GetLandmarks().end(); ++itL)
+      for (Landmarks::const_iterator itL = sfm_data.getLandmarks().begin();
+        itL != sfm_data.getLandmarks().end(); ++itL)
       {
         const Landmark & landmark = itL->second;
         const Observations & observations = landmark.observations;
@@ -215,11 +224,11 @@ bool exportToBundlerFormat(
     HashMap<IndexT, IndexT> map_viewIdToContiguous;
 
     // Count the number of valid cameras and re-index the viewIds
-    for(Views::const_iterator iter = sfm_data.GetViews().begin();
-      iter != sfm_data.GetViews().end(); ++iter)
+    for(Views::const_iterator iter = sfm_data.getViews().begin();
+      iter != sfm_data.getViews().end(); ++iter)
     {
       const View * view = iter->second.get();
-      if (!sfm_data.IsPoseAndIntrinsicDefined(view))
+      if (!sfm_data.isPoseAndIntrinsicDefined(view))
         continue;
 
       // View Id re-indexing
@@ -228,18 +237,18 @@ bool exportToBundlerFormat(
 
     // Fill the "Bundle file"
     os << "# Bundle file v0.3" << os.widen('\n')
-      << map_viewIdToContiguous.size()  << " " << sfm_data.GetLandmarks().size() << os.widen('\n');
+      << map_viewIdToContiguous.size()  << " " << sfm_data.getLandmarks().size() << os.widen('\n');
 
     // Export camera properties & image filenames
-    for(Views::const_iterator iter = sfm_data.GetViews().begin();
-      iter != sfm_data.GetViews().end(); ++iter)
+    for(Views::const_iterator iter = sfm_data.getViews().begin();
+      iter != sfm_data.getViews().end(); ++iter)
     {
       const View * view = iter->second.get();
-      if (!sfm_data.IsPoseAndIntrinsicDefined(view))
+      if (!sfm_data.isPoseAndIntrinsicDefined(view))
         continue;
 
-      const Pose3 pose = sfm_data.getPose(*view);
-      Intrinsics::const_iterator iterIntrinsic = sfm_data.GetIntrinsics().find(view->getIntrinsicId());
+      const Pose3 pose = sfm_data.getPose(*view).getTransform();
+      Intrinsics::const_iterator iterIntrinsic = sfm_data.getIntrinsics().find(view->getIntrinsicId());
 
       // Must export focal, k1, k2, R, t
 
@@ -270,8 +279,8 @@ bool exportToBundlerFormat(
       }
     }
     // Export structure and visibility
-    for (Landmarks::const_iterator iter = sfm_data.GetLandmarks().begin();
-      iter != sfm_data.GetLandmarks().end(); ++iter)
+    for (Landmarks::const_iterator iter = sfm_data.getLandmarks().begin();
+      iter != sfm_data.getLandmarks().end(); ++iter)
     {
       const Landmark & landmark = iter->second;
       const Observations & observations = landmark.observations;
@@ -364,21 +373,22 @@ int main(int argc, char *argv[])
   if (!fs::exists(outputFolder))
     fs::create_directory(outputFolder);
 
-  SfMData sfm_data;
-  if (!Load(sfm_data, sfmDataFilename, ESfMData(ALL))) {
+  SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData::ALL))
+  {
     std::cerr << std::endl
       << "The input SfMData file \""<< sfmDataFilename << "\" cannot be read." << std::endl;
     return EXIT_FAILURE;
   }
 
   {
-    exportToPMVSFormat(sfm_data,
+    exportToPMVSFormat(sfmData,
       (fs::path(outputFolder) / std::string("PMVS")).string(),
       resolution,
       nbCore,
       useVisData);
 
-    exportToBundlerFormat(sfm_data,
+    exportToBundlerFormat(sfmData,
       (fs::path(outputFolder) /
       std::string("PMVS") /
       std::string("bundle.rd.out")).string(),
@@ -386,9 +396,9 @@ int main(int argc, char *argv[])
       std::string("PMVS") /
       std::string("list.txt")).string());
 
-    return( EXIT_SUCCESS );
+    return EXIT_SUCCESS;
   }
 
   // Exit program
-  return( EXIT_FAILURE );
+  return EXIT_FAILURE;
 }

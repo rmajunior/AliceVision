@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -16,7 +17,13 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 2
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
+
 namespace bfs = boost::filesystem;
 namespace po = boost::program_options;
 
@@ -37,6 +44,8 @@ int main(int argc, char* argv[])
     std::string outTextureFileTypeName = EImageFileType_enumToString(EImageFileType::PNG);
     bool flipNormals = false;
     mesh::TexturingParams texParams;
+    std::string unwrapMethod = mesh::EUnwrapMethod_enumToString(mesh::EUnwrapMethod::Basic);
+    std::string visibilityRemappingMethod = mesh::EVisibilityRemappingMethod_enumToString(texParams.visibilityRemappingMethod);
 
     po::options_description allParams("AliceVision texturing");
 
@@ -55,14 +64,34 @@ int main(int argc, char* argv[])
           EImageFileType_informations().c_str())
         ("textureSide", po::value<unsigned int>(&texParams.textureSide)->default_value(texParams.textureSide),
             "Output texture size")
-        ("padding", po::value<unsigned int>(&texParams.padding)->default_value(texParams.padding),
-            "Texture edge padding size in pixel")
         ("downscale", po::value<unsigned int>(&texParams.downscale)->default_value(texParams.downscale),
             "Texture downscale factor")
+        ("unwrapMethod", po::value<std::string>(&unwrapMethod)->default_value(unwrapMethod),
+            "Method to unwrap input mesh if it does not have UV coordinates.\n"
+            " * Basic (> 600k faces) fast and simple. Can generate multiple atlases.\n"
+            " * LSCM (<= 600k faces): optimize space. Generates one atlas.\n"
+            " * ABF (<= 300k faces): optimize space and stretch. Generates one atlas.'")
+        ("fillHoles", po::value<bool>(&texParams.fillHoles)->default_value(texParams.fillHoles),
+            "Fill texture holes with plausible values.")
+        ("padding", po::value<unsigned int>(&texParams.padding)->default_value(texParams.padding),
+            "Texture edge padding size in pixel")
         ("inputMesh", po::value<std::string>(&inputMeshFilepath),
             "Optional input mesh to texture. By default, it will texture the inputReconstructionMesh.")
         ("flipNormals", po::value<bool>(&flipNormals)->default_value(flipNormals),
-            "Option to flip face normals. It can be needed as it depends on the vertices order in triangles and the convention change from one software to another.");
+            "Option to flip face normals. It can be needed as it depends on the vertices order in triangles and the convention change from one software to another.")
+        ("maxNbImagesForFusion", po::value<int>(&texParams.maxNbImagesForFusion)->default_value(texParams.maxNbImagesForFusion),
+            "Max number of images to combine to create the final texture.")
+        ("bestScoreThreshold", po::value<double>(&texParams.bestScoreThreshold)->default_value(texParams.bestScoreThreshold),
+            "(0.0 to disable filtering based on threshold to relative best score).")
+        ("angleHardThreshold", po::value<double>(&texParams.angleHardThreshold)->default_value(texParams.angleHardThreshold),
+            "(0.0 to disable angle hard threshold filtering).")
+        ("forceVisibleByAllVertices", po::value<bool>(&texParams.forceVisibleByAllVertices)->default_value(texParams.forceVisibleByAllVertices),
+            "triangle visibility is based on the union of vertices visiblity.")
+        ("visibilityRemappingMethod", po::value<std::string>(&visibilityRemappingMethod)->default_value(visibilityRemappingMethod),
+            "Method to remap visibilities from the reconstruction to the input mesh.\n"
+            " * Pull: For each vertex of the input mesh, pull the visibilities from the closest vertex in the reconstruction.\n"
+            " * Push: For each vertex of the reconstruction, push the visibilities to the closest triangle in the input mesh.\n"
+            " * PullPush: Combine results from Pull and Push results.'");
 
     po::options_description logParams("Log parameters");
     logParams.add_options()
@@ -104,6 +133,7 @@ int main(int argc, char* argv[])
     // set verbose level
     system::Logger::get()->setLogLevel(verboseLevel);
 
+    texParams.visibilityRemappingMethod = mesh::EVisibilityRemappingMethod_stringToEnum(visibilityRemappingMethod);
     // set output texture file type
     const EImageFileType outputTextureFileType = EImageFileType_stringToEnum(outTextureFileTypeName);
 
@@ -112,53 +142,32 @@ int main(int argc, char* argv[])
 
     mesh::Texturing mesh;
     mesh.texParams = texParams;
-    mesh.me = new mesh::Mesh();
 
-    if(!mesh.me->loadFromBin(inputDenseReconstruction))
-    {
-        ALICEVISION_LOG_ERROR("Unable to load: " << inputDenseReconstruction);
-        return EXIT_FAILURE;
-    }
+    // load dense reconstruction
+    const bfs::path reconstructionMeshFolder = bfs::path(inputDenseReconstruction).parent_path();
+    mesh.loadFromMeshing(inputDenseReconstruction, (reconstructionMeshFolder/"meshPtsCamsFromDGC.bin").string());
 
-    bfs::path reconstructionMeshFolder = bfs::path(inputDenseReconstruction).parent_path();
-
-    mesh::PointsVisibility* ptsCams = loadArrayOfArraysFromFile<int>((reconstructionMeshFolder/"meshPtsCamsFromDGC.bin").string());
-    if(ptsCams->size() != mesh.me->pts->size())
-        throw std::runtime_error("Error: Reference mesh and associated visibilities don't have the same size.");
-    // filterPtsCamsByMinimalPixelSize(refMesh, refPtsCams, &mp);
     bfs::create_directory(outputFolder);
-
-    //std::cout << "Points with no visibilities " << std::count(ptsCams->begin(), ptsCams->end(), nullptr) << std::endl;
 
     // texturing from input mesh
     if(!inputMeshFilepath.empty())
     {
-        ALICEVISION_LOG_INFO("An external input mesh is provided, so we remap the visibility from the reconstruction on it.");
-        // keep previous mesh as reference
-        mesh::Mesh* refMesh = mesh.me;
-        // load input obj file
-        mesh.me = new mesh::Mesh();
-        mesh.loadFromOBJ(inputMeshFilepath, flipNormals);
-        // remap visibilities from reconstruction onto input mesh
-        mesh::PointsVisibility otherPtsVisibilities;
-        mesh::remapMeshVisibilities(*refMesh, *ptsCams, *mesh.me, otherPtsVisibilities);
-
-        delete refMesh;
-        ptsCams->swap(otherPtsVisibilities);
+       mesh.replaceMesh(inputMeshFilepath, flipNormals);
     }
+
     if(!mesh.hasUVs())
     {
-        ALICEVISION_LOG_INFO("The input mesh has no UV, so we generate them.");
-        // generate UV coordinates based on automatic uv atlas
-        auto* updatedPtsCams = mesh.generateUVs(mp, ptsCams);
-        std::swap(ptsCams, updatedPtsCams);
-        deleteArrayOfArrays<int>(&updatedPtsCams);
-        mesh.saveAsOBJ(outputFolder, "texturedMesh", outputTextureFileType);
+        ALICEVISION_LOG_INFO("Input mesh has no UV coordinates, start unwrapping (" + unwrapMethod +")");
+        mesh.unwrap(mp, mesh::EUnwrapMethod_stringToEnum(unwrapMethod));
+        ALICEVISION_LOG_INFO("Unwrapping done.");
     }
+
+    // save final obj file
+    mesh.saveAsOBJ(outputFolder, "texturedMesh", outputTextureFileType);
 
     // generate textures
     ALICEVISION_LOG_INFO("Generate textures.");
-    mesh.generateTextures(mp, ptsCams, outputFolder, outputTextureFileType);
+    mesh.generateTextures(mp, outputFolder, outputTextureFileType);
 
     ALICEVISION_LOG_INFO("Task done in (s): " + std::to_string(timer.elapsed()));
     return EXIT_SUCCESS;

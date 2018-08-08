@@ -11,25 +11,11 @@ set(kvld_files_sources
   algorithm.cpp
 )
 
-add_library(aliceVision_kvld
-  ${kvld_files_headers}
-  ${kvld_files_sources}
-)
-
-set_target_properties(aliceVision_kvld
-  PROPERTIES SOVERSION ${ALICEVISION_VERSION_MAJOR}
-  VERSION "${ALICEVISION_VERSION_MAJOR}.${ALICEVISION_VERSION_MINOR}"
-)
-
-target_link_libraries(aliceVision_kvld
-  PUBLIC aliceVision_image
-)
-
-set_property(TARGET aliceVision_kvld
-  PROPERTY FOLDER AliceVision/AliceVision
-)
-
-install(TARGETS aliceVision_kvld
-  DESTINATION lib
-  EXPORT aliceVision-targets
+alicevision_add_library(aliceVision_kvld
+  SOURCES ${kvld_files_headers} ${kvld_files_sources}
+  PUBLIC_LINKS
+    aliceVision_image
+    aliceVision_feature
+    aliceVision_numeric
+    aliceVision_system
 )

@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -20,7 +21,7 @@ Point3d closestPointToLine3D(const Point3d* point, const Point3d* linePoint, con
     return (*linePoint) + (*lineVectNormalized) * dot((*lineVectNormalized), (*point) - (*linePoint));
 }
 
-float pointPlaneDistance(const Point3d& point, const Point3d& planePoint, const Point3d& planeNormal)
+double pointPlaneDistance(const Point3d& point, const Point3d& planePoint, const Point3d& planeNormal)
 {
     return fabs(dot(point, planeNormal) - dot(planePoint, planeNormal)) / sqrt(dot(planeNormal, planeNormal));
 }
@@ -190,36 +191,24 @@ void linePlaneIntersect(Point3d* out, const Point3d* linePoint, const Point3d* l
 }
 
 // this angle is always between 0 and 180
-float angleBetwV1andV2(const Point3d& iV1, const Point3d& iV2)
+double angleBetwV1andV2(const Point3d& iV1, const Point3d& iV2)
 {
     Point3d V1, V2;
     V1 = iV1.normalize();
     V2 = iV2.normalize();
 
-    float a = acos((float)(V1.x * V2.x + V1.y * V2.y + V1.z * V2.z));
+    const double a = acos((double)(V1.x * V2.x + V1.y * V2.y + V1.z * V2.z));
     if(std::isnan(a))
-    {
-        a = 0.0f;
-    }
+        return 0.0;
 
     return fabs(a / (M_PI / 180.0));
 }
 
-float angleBetwABandAC(const Point3d& A, const Point3d& B, const Point3d& C)
+double angleBetwABandAC(const Point3d& A, const Point3d& B, const Point3d& C)
 {
-    Point3d V1, V2;
-    V1 = B - A;
-    V2 = C - A;
-    V1 = V1.normalize();
-    V2 = V2.normalize();
-
-    float a = acos((float)(V1.x * V2.x + V1.y * V2.y + V1.z * V2.z));
-    if(std::isnan(a))
-    {
-        a = 0.0f;
-    }
-
-    return fabs(a) / (M_PI / 180.0);
+    Point3d V1 = B - A;
+    Point3d V2 = C - A;
+    return angleBetwV1andV2(V1, V2);
 }
 
 void rotPointAroundVect(double* out, const double* X, const double* vect, const double angle)

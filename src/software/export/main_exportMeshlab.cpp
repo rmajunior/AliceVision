@@ -1,22 +1,31 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
+// Copyright (c) 2012 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/sfm/sfm.hpp>
-#include <aliceVision/image/all.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/numeric/numeric.hpp>
+#include <aliceVision/image/all.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
 #include <fstream>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
 using namespace aliceVision::camera;
 using namespace aliceVision::geometry;
 using namespace aliceVision::image;
-using namespace aliceVision::sfm;
+using namespace aliceVision::sfmData;
+
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -76,12 +85,13 @@ int main(int argc, char **argv)
   system::Logger::get()->setLogLevel(verboseLevel);
 
   // Create output dir
-  if (!fs::exists(outDirectory))
+  if(!fs::exists(outDirectory))
     fs::create_directory(outDirectory);
 
   // Read the SfM scene
   SfMData sfm_data;
-  if (!Load(sfm_data, sfmDataFilename, ESfMData(VIEWS|INTRINSICS|EXTRINSICS))) {
+  if(!sfmDataIO::Load(sfm_data, sfmDataFilename, sfmDataIO::ESfMData(sfmDataIO::VIEWS|sfmDataIO::INTRINSICS|sfmDataIO::EXTRINSICS)))
+  {
     std::cerr << std::endl
       << "The input SfMData file \""<< sfmDataFilename << "\" cannot be read." << std::endl;
     return EXIT_FAILURE;
@@ -105,15 +115,15 @@ int main(int argc, char **argv)
 
   outfile <<  " <RasterGroup>" << outfile.widen('\n');
 
-  for(Views::const_iterator iter = sfm_data.GetViews().begin();
-      iter != sfm_data.GetViews().end(); ++iter)
+  for(Views::const_iterator iter = sfm_data.getViews().begin();
+      iter != sfm_data.getViews().end(); ++iter)
   {
     const View * view = iter->second.get();
-    if (!sfm_data.IsPoseAndIntrinsicDefined(view))
+    if (!sfm_data.isPoseAndIntrinsicDefined(view))
       continue;
 
-    const Pose3 pose = sfm_data.getPose(*view);
-    Intrinsics::const_iterator iterIntrinsic = sfm_data.GetIntrinsics().find(view->getIntrinsicId());
+    const Pose3 pose = sfm_data.getPose(*view).getTransform();
+    Intrinsics::const_iterator iterIntrinsic = sfm_data.getIntrinsics().find(view->getIntrinsicId());
 
     // We have a valid view with a corresponding camera & pose
     const std::string srcImage = view->getImagePath();

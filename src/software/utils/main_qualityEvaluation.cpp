@@ -1,12 +1,16 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2016 AliceVision contributors.
+// Copyright (c) 2012 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/sfm/sfm.hpp>
-#include <aliceVision/config.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
+#include <aliceVision/config.hpp>
 
 #include <software/utils/precisionEvaluationToGt.hpp>
 #include <software/utils/sfmHelper/sfmPlyHelper.hpp>
@@ -19,9 +23,12 @@
 #include <cstdlib>
 #include <iostream>
 
-using namespace std;
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
-using namespace aliceVision::sfm;
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -94,18 +101,18 @@ int main(int argc, char **argv)
     fs::create_directory(outputFolder);
 
   // load GT camera rotations & positions [R|C]:
-  SfMData sfmData_gt;
+  sfmData::SfMData sfmData_gt;
 
-  if (!Load(sfmData_gt, gtFilename, ESfMData(VIEWS|INTRINSICS|EXTRINSICS)))
+  if(!sfmDataIO::Load(sfmData_gt, gtFilename, sfmDataIO::ESfMData(sfmDataIO::VIEWS|sfmDataIO::INTRINSICS|sfmDataIO::EXTRINSICS)))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '"<< gtFilename << "' cannot be read");
     return EXIT_FAILURE;
   }
-  ALICEVISION_LOG_INFO(sfmData_gt.GetPoses().size() << " gt cameras have been found");
+  ALICEVISION_LOG_INFO(sfmData_gt.getPoses().size() << " gt cameras have been found");
 
   // load the camera that we have to evaluate
-  SfMData sfmData;
-  if (!Load(sfmData, sfmDataFilename, ESfMData(VIEWS|INTRINSICS|EXTRINSICS)))
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData(sfmDataIO::VIEWS|sfmDataIO::INTRINSICS|sfmDataIO::EXTRINSICS)))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '"<< sfmDataFilename << "' cannot be read");
     return EXIT_FAILURE;
@@ -114,31 +121,31 @@ int main(int argc, char **argv)
   // fill vectors of valid views for evaluation
   std::vector<Vec3> vec_camPosGT, vec_C;
   std::vector<Mat3> vec_camRotGT, vec_camRot;
-  for(const auto &iter : sfmData.GetViews())
+  for(const auto &iter : sfmData.getViews())
   {
     const auto &view = iter.second;
     // jump to next view if there is no correponding pose in reconstruction
-    if(sfmData.GetPoses().find(view->getPoseId()) == sfmData.GetPoses().end())
+    if(sfmData.getPoses().find(view->getPoseId()) == sfmData.getPoses().end())
     {
       ALICEVISION_LOG_INFO("no pose in input for view " << view->getPoseId());
       continue;
     }
 
     // jump to next view if there is no corresponding view in GT
-    if(sfmData_gt.GetViews().find(view->getViewId()) == sfmData_gt.GetViews().end())
+    if(sfmData_gt.getViews().find(view->getViewId()) == sfmData_gt.getViews().end())
     {
       ALICEVISION_LOG_INFO("no view in GT for viewId " << view->getViewId());
       continue;
     }
-    const int idPoseGT = sfmData_gt.GetViews().at(view->getViewId())->getPoseId();
+    const int idPoseGT = sfmData_gt.getViews().at(view->getViewId())->getPoseId();
 
     // gt
-    const geometry::Pose3 pose_gt = sfmData_gt.GetPoses().at(idPoseGT);
+    const geometry::Pose3& pose_gt = sfmData_gt.getAbsolutePose(idPoseGT).getTransform();
     vec_camPosGT.push_back(pose_gt.center());
     vec_camRotGT.push_back(pose_gt.rotation());
 
     // data to evaluate
-    const geometry::Pose3 pose_eval = sfmData.GetPoses().at(view->getPoseId());
+    const geometry::Pose3 pose_eval = sfmData.getPose(*view).getTransform();
     vec_C.push_back(pose_eval.center());
     vec_camRot.push_back(pose_eval.rotation());
   }
@@ -151,7 +158,7 @@ int main(int argc, char **argv)
   htmlDocument::htmlDocumentStream _htmlDocStream("aliceVision Quality evaluation.");
   EvaluteToGT(vec_camPosGT, vec_C, vec_camRotGT, vec_camRot, outputFolder, &_htmlDocStream);
 
-  ofstream htmlFileStream((fs::path(outputFolder) / "ExternalCalib_Report.html").string());
+  std::ofstream htmlFileStream((fs::path(outputFolder) / "ExternalCalib_Report.html").string());
   htmlFileStream << _htmlDocStream.getDoc();
 
   return EXIT_SUCCESS;

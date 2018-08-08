@@ -14,25 +14,30 @@
 #include <aliceVision/feature/feature.hpp>
 #include <aliceVision/matchingImageCollection/ImageCollectionMatcher_generic.hpp>
 
-#include "aliceVision/sfm/SfMData.hpp"
-#include "aliceVision/sfm/sfmDataIO.hpp"
+#include "aliceVision/sfmData/SfMData.hpp"
+#include "aliceVision/sfmDataIO/sfmDataIO.hpp"
 
 namespace aliceVision {
 namespace feature {
 
 /**
-* @brief Compute the n best matches.
+* @brief Compute the n best matches ('best' = mean of features' scale)
 * @param[in] inputMatches Set of indices for (putative) matches.
 * @param[in] regionsI Reference to the regions of the left image.
 * @param[in] regionsJ Reference to the regions of the right image.
 * @param[out] outputMatches Subset of inputMatches containing the best n matches, sorted.
 */
-void sortMatches(
+void sortMatches_byFeaturesScale(
 	const aliceVision::matching::IndMatches& inputMatches,
 	const aliceVision::feature::FeatRegions<aliceVision::feature::SIOPointFeature>& regionsI,
 	const aliceVision::feature::FeatRegions<aliceVision::feature::SIOPointFeature>& regionsJ,
 	aliceVision::matching::IndMatches& outputMatches);
 
+/** 
+ * @brief Sort matches according to their Lowe ratio (ascending order). 
+ * @param[in,out] matches Set of indices for (putative) matches. 
+ */ 
+void sortMatches_byDistanceRatio(aliceVision::matching::IndMatches& matches);
 
 /**
 * @brief Compare method used in the match sorting.
@@ -60,7 +65,7 @@ void thresholdMatches(aliceVision::matching::IndMatches& outputMatches, const st
 void matchesGridFiltering(const aliceVision::feature::FeatRegions<aliceVision::feature::SIOPointFeature>& lRegions, 
         const aliceVision::feature::FeatRegions<aliceVision::feature::SIOPointFeature>& rRegions, 
         const aliceVision::Pair& indexImagePair,
-        const aliceVision::sfm::SfMData sfm_data, 
+        const aliceVision::sfmData::SfMData sfm_data, 
         aliceVision::matching::IndMatches& outMatches);
 
 }

@@ -1,15 +1,16 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2016 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/voctree/TreeBuilder.hpp>
 #include <aliceVision/voctree/Database.hpp>
 #include <aliceVision/voctree/VocabularyTree.hpp>
 #include <aliceVision/voctree/descriptorLoader.hpp>
 #include <aliceVision/feature/Descriptor.hpp>
-#include <aliceVision/sfm/SfMData.hpp>
-#include <aliceVision/sfm/sfmDataIO.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
 
@@ -21,6 +22,11 @@
 #include <fstream>
 #include <string>
 #include <chrono>
+
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
 
 static const int DIMENSION = 128;
 
@@ -40,13 +46,13 @@ int main(int argc, char** argv)
 {
   std::string verboseLevel = system::EVerboseLevel_enumToString(system::Logger::getDefaultVerboseLevel());
   int tbVerbosity = 2;
-  string weightName;
-  string treeName;
-  string sfmDataFilename;
-  string featuresFolder;
-  uint32_t K = 10;
-  uint32_t restart = 5;
-  uint32_t LEVELS = 6;
+  std::string weightName;
+  std::string treeName;
+  std::string sfmDataFilename;
+  std::vector<std::string> featuresFolders;
+  std::uint32_t K = 10;
+  std::uint32_t restart = 5;
+  std::uint32_t LEVELS = 6;
   bool sanityCheck = true;
 
   po::options_description allParams("This program is used to load the sift descriptors from a SfMData file and create a vocabulary tree\n"
@@ -62,7 +68,8 @@ int main(int argc, char** argv)
 
   po::options_description optionalParams("Optional parameters");
   optionalParams.add_options()
-    ("featuresFolder,f", po::value<string>(&featuresFolder), "Path to a folder containing the extracted features and descriptors. By default, it is the folder containing the SfMData.")
+    ("featuresFolders,f", po::value<std::vector<std::string>>(&featuresFolders)->multitoken(),
+      "Path to folder(s) containing the extracted features.")
     (",k", po::value<uint32_t>(&K)->default_value(10), "The branching factor of the tree")
     ("restart,r", po::value<uint32_t>(&restart)->default_value(5), "Number of times that the kmean is launched for each cluster, the best solution is kept")
     (",L", po::value<uint32_t>(&LEVELS)->default_value(6), "Number of levels of the tree")
@@ -108,8 +115,8 @@ int main(int argc, char** argv)
   system::Logger::get()->setLogLevel(verboseLevel);
 
   // load SfMData
-  sfm::SfMData sfmData;
-  if(!sfm::Load(sfmData, sfmDataFilename, sfm::ESfMData::ALL))
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData::ALL))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '" + sfmDataFilename + "' cannot be read.");
     return EXIT_FAILURE;
@@ -120,7 +127,7 @@ int main(int argc, char** argv)
   std::vector<size_t> descRead;
   ALICEVISION_COUT("Reading descriptors from " << sfmDataFilename);
   auto detect_start = std::chrono::steady_clock::now();
-  size_t numTotDescriptors = aliceVision::voctree::readDescFromFiles<DescriptorFloat, DescriptorUChar>(sfmData, featuresFolder, descriptors, descRead);
+  size_t numTotDescriptors = aliceVision::voctree::readDescFromFiles<DescriptorFloat, DescriptorUChar>(sfmData, featuresFolders, descriptors, descRead);
   auto detect_end = std::chrono::steady_clock::now();
   auto detect_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(detect_end - detect_start);
   if(descriptors.size() == 0)

@@ -1,9 +1,11 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/sfm/sfm.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/image/all.hpp>
 #include <aliceVision/image/convertion.hpp>
 
@@ -18,11 +20,17 @@
 #include <iomanip>
 #include <map>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
 using namespace aliceVision::camera;
 using namespace aliceVision::geometry;
 using namespace aliceVision::image;
-using namespace aliceVision::sfm;
+using namespace aliceVision::sfmData;
+
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -76,9 +84,10 @@ bool exportToMatlab(
     for(const auto& v: sfm_data.views)
     {
       const View& view = *v.second.get();
-      if(!sfm_data.IsPoseAndIntrinsicDefined(&view))
+      if(!sfm_data.isPoseAndIntrinsicDefined(&view))
         continue;
-      const Pose3& pose = sfm_data.GetPoses().at(view.getPoseId());
+
+      const Pose3 pose = sfm_data.getPose(view).getTransform();
       cameraPosesFile << view.getViewId()
         << " " << pose.rotation()(0, 0)
         << " " << pose.rotation()(0, 1)
@@ -113,7 +122,7 @@ bool exportToMatlab(
     for(const auto& v: sfm_data.views)
     {
       const View& view = *v.second.get();
-      if(!sfm_data.IsPoseAndIntrinsicDefined(&view))
+      if(!sfm_data.isPoseAndIntrinsicDefined(&view))
         continue;
       const IntrinsicBase& intrinsics = *sfm_data.intrinsics.at(view.getIntrinsicId()).get();
       cameraIntrinsicsFile << view.getViewId() << " " << camera::EINTRINSIC_enumToString(intrinsics.getType());
@@ -182,12 +191,12 @@ int main(int argc, char *argv[])
   // export
   {
     // Create output dir
-    if (!fs::exists(outputFolder))
+    if(!fs::exists(outputFolder))
       fs::create_directory(outputFolder);
 
     // Read the input SfM scene
     SfMData sfmData;
-    if (!Load(sfmData, sfmDataFilename, ESfMData(ALL)))
+    if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData::ALL))
     {
       std::cerr << std::endl
         << "The input SfMData file \""<< sfmDataFilename << "\" cannot be read." << std::endl;

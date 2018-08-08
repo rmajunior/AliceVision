@@ -1,6 +1,9 @@
 ## AliceVision
 ## Samples
 
+# Samples PROPERTY FOLDER
+set(FOLDER_SAMPLES "Samples")
+
 # add_subdirectory(accv12Demo)
 # add_subdirectory(featuresAKAZEDemo)
 add_subdirectory(featuresRepeatability)
@@ -13,6 +16,7 @@ add_subdirectory(robustEssentialSpherical)
 add_subdirectory(robustFundamental)
 add_subdirectory(robustFundamentalGuided)
 add_subdirectory(robustHomography)
+add_subdirectory(robustHomographyGrowing)
 add_subdirectory(robustHomographyGuided)
 add_subdirectory(sensorWidthDatabase)
 add_subdirectory(siftPutativeMatches)

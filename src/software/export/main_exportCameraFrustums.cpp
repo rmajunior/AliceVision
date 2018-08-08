@@ -1,9 +1,13 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
+// Copyright (c) 2015 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/sfm/sfm.hpp>
+#include <aliceVision/sfm/FrustumFilter.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/system/Timer.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
@@ -11,8 +15,13 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
-using namespace aliceVision::sfm;
+
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -74,8 +83,8 @@ int main(int argc, char **argv)
   system::Logger::get()->setLogLevel(verboseLevel);
 
   // load input SfMData scene
-  SfMData sfmData;
-  if(!Load(sfmData, sfmDataFilename, ESfMData(VIEWS|INTRINSICS|EXTRINSICS)))
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData(sfmDataIO::VIEWS|sfmDataIO::INTRINSICS|sfmDataIO::EXTRINSICS)))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '"<< sfmDataFilename << "' cannot be read.");
     return EXIT_FAILURE;
@@ -87,7 +96,7 @@ int main(int argc, char **argv)
       return EXIT_FAILURE;
 
   // if sfmData have not structure, cameras are displayed as tiny normalized cones
-  const FrustumFilter frustumFilter(sfmData);
+  const sfm::FrustumFilter frustumFilter(sfmData);
   if(!plyOutFilename.empty())
   {
     if(frustumFilter.export_Ply(plyOutFilename))

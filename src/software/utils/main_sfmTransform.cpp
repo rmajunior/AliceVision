@@ -1,13 +1,15 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/sfm/sfm.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/sfm/utils/alignment.hpp>
-#include <aliceVision/config.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
+#include <aliceVision/config.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -15,8 +17,13 @@
 #include <sstream>
 #include <vector>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
-using namespace aliceVision::sfm;
+
 namespace po = boost::program_options;
 
 /**
@@ -174,8 +181,8 @@ int main(int argc, char **argv)
   }
 
   // Load input scene
-  SfMData sfmDataIn;
-  if(!Load(sfmDataIn, sfmDataFilename, ESfMData(ALL)))
+  sfmData::SfMData sfmDataIn;
+  if(!sfmDataIO::Load(sfmDataIn, sfmDataFilename, sfmDataIO::ESfMData::ALL))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '" << sfmDataFilename << "' cannot be read");
     return EXIT_FAILURE;
@@ -198,11 +205,11 @@ int main(int argc, char **argv)
     break;
 
     case EAlignmentMethod::AUTO_FROM_CAMERAS:
-      computeNewCoordinateSystemFromCameras(sfmDataIn, S, R, t);
+      sfm::computeNewCoordinateSystemFromCameras(sfmDataIn, S, R, t);
     break;
 
     case EAlignmentMethod::AUTO_FROM_LANDMARKS:
-      computeNewCoordinateSystemFromLandmarks(sfmDataIn, feature::EImageDescriberType_stringToEnums(landmarksDescriberTypesName), S, R, t);
+      sfm::computeNewCoordinateSystemFromLandmarks(sfmDataIn, feature::EImageDescriberType_stringToEnums(landmarksDescriberTypesName), S, R, t);
     break;
   }
 
@@ -219,12 +226,12 @@ int main(int argc, char **argv)
   S *= userScale;
   t *= userScale;
 
-  applyTransform(sfmDataIn, S, R, t);
+  sfm::applyTransform(sfmDataIn, S, R, t);
 
   ALICEVISION_LOG_INFO("Save into '" << outSfMDataFilename << "'");
   
   // Export the SfMData scene in the expected format
-  if(!Save(sfmDataIn, outSfMDataFilename, ESfMData::ALL))
+  if(!sfmDataIO::Save(sfmDataIn, outSfMDataFilename, sfmDataIO::ESfMData::ALL))
   {
     ALICEVISION_LOG_ERROR("An error occurred while trying to save '" << outSfMDataFilename << "'");
     return EXIT_FAILURE;

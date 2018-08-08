@@ -7,13 +7,23 @@
 
 #pragma once
 
-#include <aliceVision/sfm/sfmDataIO.hpp>
+#include <string>
 
 namespace aliceVision {
+
+namespace sfmData {
+class SfMData;
+} // namespace sfmData
+
 namespace sfm {
 
-bool Generate_SfM_Report(const SfMData & sfm_data, const std::string & htmlFilename);
-
+/**
+ * @brief generate a report for the structure from motion
+ * @param sfmData The input sfmData
+ * @param htmlFilename The filename of the HTML report
+ * @return true if ok
+ */
+bool generateSfMReport(const sfmData::SfMData& sfmData, const std::string& htmlFilename);
 
 } // namespace sfm
 } // namespace aliceVision

@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -407,6 +408,26 @@ void convolveImage(int inWidth, int inHeight, const std::vector<float>& inBuffer
 void convolveImage(int inWidth, int inHeight, const std::vector<Color>& inBuffer, std::vector<Color>& outBuffer, const std::string& kernel, float kernelWidth, float kernelHeight)
 {
   convolveImage(oiio::TypeDesc::FLOAT, inWidth, inHeight, 3, inBuffer, outBuffer, kernel, kernelWidth, kernelHeight);
+}
+
+void fillHoles(int inWidth, int inHeight, std::vector<Color>& colorBuffer, const std::vector<float>& alphaBuffer)
+{
+    oiio::ImageBuf rgbBuf(oiio::ImageSpec(inWidth, inHeight, 3, oiio::TypeDesc::FLOAT), colorBuffer.data());
+    const oiio::ImageBuf alphaBuf(oiio::ImageSpec(inWidth, inHeight, 1, oiio::TypeDesc::FLOAT), const_cast<float*>(alphaBuffer.data()));
+
+    // Create RGBA ImageBuf from source buffers with correct channel names
+    // (identified alpha channel is needed for fillholes_pushpull)
+    oiio::ImageBuf rgbaBuf;
+    oiio::ImageBufAlgo::channel_append(rgbaBuf, rgbBuf, alphaBuf);
+    rgbaBuf.specmod().default_channel_names();
+
+    // Temp RGBA buffer to store fillholes result
+    oiio::ImageBuf filledBuf;
+    oiio::ImageBufAlgo::fillholes_pushpull(filledBuf, rgbaBuf);
+    rgbaBuf.clear();
+
+    // Copy result to original RGB buffer
+    oiio::ImageBufAlgo::copy(rgbBuf, filledBuf);
 }
 
 } // namespace imageIO

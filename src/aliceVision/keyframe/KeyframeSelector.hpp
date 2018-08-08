@@ -1,5 +1,5 @@
 // This file is part of the AliceVision project.
-// Copyright (c) 2016 AliceVision contributors.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -291,7 +291,7 @@ private:
    * @param[in] tileSharpSubset number of sharp tiles
    * @return sharpness score
    */
-  float computeSharpness(const image::Image<unsigned char>& imageGray,
+  float computeSharpness(const image::Image<float>& imageGray,
                          const unsigned int tileHeight,
                          const unsigned int tileWidth,
                          const unsigned int tileSharpSubset) const;

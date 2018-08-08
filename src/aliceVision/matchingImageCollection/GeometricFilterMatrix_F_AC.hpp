@@ -19,7 +19,7 @@
 #include "aliceVision/robustEstimation/LORansacKernelAdaptor.hpp"
 #include "aliceVision/robustEstimation/ScoreEvaluator.hpp"
 #include "aliceVision/robustEstimation/guidedMatching.hpp"
-#include "aliceVision/sfm/SfMData.hpp"
+#include "aliceVision/sfmData/SfMData.hpp"
 #include "aliceVision/feature/RegionsPerView.hpp"
 
 namespace aliceVision {
@@ -43,9 +43,9 @@ struct GeometricFilterMatrix_F_AC: public GeometricFilterMatrix
    */
   template<class Regions_or_Features_ProviderT>
   EstimationStatus geometricEstimation(
-    const sfm::SfMData * sfmData,
+    const sfmData::SfMData * sfmData,
     const Regions_or_Features_ProviderT & regionsPerView,
-    const Pair pairIndex,
+    const Pair& pairIndex,
     const matching::MatchesPerDescType & putativeMatchesPerType,
     matching::MatchesPerDescType & out_geometricInliersPerType)
   {
@@ -57,14 +57,14 @@ struct GeometricFilterMatrix_F_AC: public GeometricFilterMatrix
     const IndexT iIndex = pairIndex.first;
     const IndexT jIndex = pairIndex.second;
 
-    const sfm::View * view_I = sfmData->views.at(iIndex).get();
-    const sfm::View * view_J = sfmData->views.at(jIndex).get();
+    const sfmData::View * view_I = sfmData->views.at(iIndex).get();
+    const sfmData::View * view_J = sfmData->views.at(jIndex).get();
 
-    const camera::IntrinsicBase * cam_I = sfmData->GetIntrinsicPtr(view_I->getIntrinsicId());
-    const camera::IntrinsicBase * cam_J = sfmData->GetIntrinsicPtr(view_J->getIntrinsicId());
+    const camera::IntrinsicBase * cam_I = sfmData->getIntrinsicPtr(view_I->getIntrinsicId());
+    const camera::IntrinsicBase * cam_J = sfmData->getIntrinsicPtr(view_J->getIntrinsicId());
 
-    const std::pair<size_t,size_t> imageSizeI(sfmData->GetViews().at(iIndex)->getWidth(), sfmData->GetViews().at(iIndex)->getHeight());
-    const std::pair<size_t,size_t> imageSizeJ(sfmData->GetViews().at(jIndex)->getWidth(), sfmData->GetViews().at(jIndex)->getHeight());
+    const std::pair<size_t,size_t> imageSizeI(sfmData->getViews().at(iIndex)->getWidth(), sfmData->getViews().at(iIndex)->getHeight());
+    const std::pair<size_t,size_t> imageSizeJ(sfmData->getViews().at(jIndex)->getWidth(), sfmData->getViews().at(jIndex)->getHeight());
 
     return geometricEstimation(
         regionsPerView.getDataPerDesc(pairIndex.first), regionsPerView.getDataPerDesc(pairIndex.second),
@@ -229,7 +229,7 @@ struct GeometricFilterMatrix_F_AC: public GeometricFilterMatrix
    * @return
    */
   bool Geometry_guided_matching(
-    const sfm::SfMData * sfmData,
+    const sfmData::SfMData * sfmData,
     const feature::RegionsPerView& regionsPerView,
     const Pair imageIdsPair,
     const double dDistanceRatio,
@@ -241,16 +241,16 @@ struct GeometricFilterMatrix_F_AC: public GeometricFilterMatrix
       const IndexT viewId_I = imageIdsPair.first;
       const IndexT viewId_J = imageIdsPair.second;
 
-      const sfm::View * view_I = sfmData->views.at(viewId_I).get();
-      const sfm::View * view_J = sfmData->views.at(viewId_J).get();
+      const sfmData::View * view_I = sfmData->views.at(viewId_I).get();
+      const sfmData::View * view_J = sfmData->views.at(viewId_J).get();
 
       // Retrieve corresponding pair camera intrinsic if any
       const camera::IntrinsicBase * cam_I =
-        sfmData->GetIntrinsics().count(view_I->getIntrinsicId()) ?
-          sfmData->GetIntrinsics().at(view_I->getIntrinsicId()).get() : nullptr;
+        sfmData->getIntrinsics().count(view_I->getIntrinsicId()) ?
+          sfmData->getIntrinsics().at(view_I->getIntrinsicId()).get() : nullptr;
       const camera::IntrinsicBase * cam_J =
-        sfmData->GetIntrinsics().count(view_J->getIntrinsicId()) ?
-          sfmData->GetIntrinsics().at(view_J->getIntrinsicId()).get() : nullptr;
+        sfmData->getIntrinsics().count(view_J->getIntrinsicId()) ?
+          sfmData->getIntrinsics().at(view_J->getIntrinsicId()).get() : nullptr;
 
       // Check the features correspondences that agree in the geometric and photometric domain
       robustEstimation::GuidedMatching<Mat3,

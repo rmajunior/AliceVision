@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -25,17 +26,7 @@ namespace fuseCut {
 
 namespace bfs = boost::filesystem;
 
-Fuser::Fuser(const mvsUtils::MultiViewParams* _mp, mvsUtils::PreMatchCams* _pc)
-  : mp(_mp)
-  , pc(_pc)
-{
-}
-
-Fuser::~Fuser()
-{
-}
-
-unsigned long Fuser::computeNumberOfAllPoints(int scale)
+unsigned long computeNumberOfAllPoints(const mvsUtils::MultiViewParams* mp, int scale)
 {
     unsigned long npts = 0;
 
@@ -64,6 +55,16 @@ unsigned long Fuser::computeNumberOfAllPoints(int scale)
         npts += nbDepthValues;
     }
     return npts;
+}
+
+Fuser::Fuser(const mvsUtils::MultiViewParams* _mp, mvsUtils::PreMatchCams* _pc)
+  : mp(_mp)
+  , pc(_pc)
+{
+}
+
+Fuser::~Fuser()
+{
 }
 
 
@@ -347,7 +348,7 @@ float Fuser::computeAveragePixelSizeInHexahedron(Point3d* hexah, int step, int s
     float av = 0.0f;
     float nav = 0.0f;
     float minv = std::numeric_limits<float>::max();
-    long t1 = mvsUtils::initEstimate();
+    //long t1 = mvsUtils::initEstimate();
     for(int c = 0; c < cams.size(); c++)
     {
         int rc = cams[c];
@@ -385,9 +386,9 @@ float Fuser::computeAveragePixelSizeInHexahedron(Point3d* hexah, int step, int s
                 j++;
             }
         }
-        mvsUtils::printfEstimate(c, cams.size(), t1);
+        //mvsUtils::printfEstimate(c, cams.size(), t1);
     }
-    mvsUtils::finishEstimate();
+    //mvsUtils::finishEstimate();
 
     if(nav == 0.0f)
     {
@@ -408,11 +409,11 @@ void Fuser::divideSpace(Point3d* hexah, float& minPixSize)
     ALICEVISION_LOG_INFO("Estimate space.");
     int scale = 0;
 
-    unsigned long npset = computeNumberOfAllPoints(scale);
-    int stepPts = std::max(1, (int)(npset / (unsigned long)3000000));
+    unsigned long npset = computeNumberOfAllPoints(mp, scale);
+    int stepPts = std::max(1, (int)(npset / (unsigned long)1000000));
 
     minPixSize = std::numeric_limits<float>::max();
-    long t1 = mvsUtils::initEstimate();
+    //long t1 = mvsUtils::initEstimate();
     Stat3d s3d = Stat3d();
     for(int rc = 0; rc < mp->ncams; rc++)
     {
@@ -440,9 +441,9 @@ void Fuser::divideSpace(Point3d* hexah, float& minPixSize)
                 s3d.update(&p);
             }
         }
-        mvsUtils::printfEstimate(rc, mp->ncams, t1);
+        //mvsUtils::printfEstimate(rc, mp->ncams, t1);
     }
-    mvsUtils::finishEstimate();
+    //mvsUtils::finishEstimate();
 
     Point3d v1, v2, v3, cg;
     float d1, d2, d3;
@@ -501,9 +502,9 @@ void Fuser::divideSpace(Point3d* hexah, float& minPixSize)
                     accZ2(fabs(d3));
             }
         }
-        mvsUtils::printfEstimate(rc, mp->ncams, t1);
+        //mvsUtils::printfEstimate(rc, mp->ncams, t1);
     }
-    mvsUtils::finishEstimate();
+    //mvsUtils::finishEstimate();
 
     float perc = (float)mp->_ini.get<double>("LargeScale.universePercentile", 0.999f);
 
@@ -528,6 +529,8 @@ void Fuser::divideSpace(Point3d* hexah, float& minPixSize)
     hexah[5] = cg + v1 * mind1 + v2 * maxd2 + v3 * mind3;
     hexah[6] = cg + v1 * mind1 + v2 * mind2 + v3 * mind3;
     hexah[7] = cg + v1 * maxd1 + v2 * mind2 + v3 * mind3;
+
+    ALICEVISION_LOG_INFO("Estimate space done.");
 }
 
 Voxel Fuser::estimateDimensions(Point3d* vox, Point3d* newSpace, int scale, int maxOcTreeDim)
@@ -543,7 +546,7 @@ Voxel Fuser::estimateDimensions(Point3d* vox, Point3d* newSpace, int scale, int 
     vy = vy.normalize();
     vz = vz.normalize();
 
-    int nAllPts = computeNumberOfAllPoints(scale);
+    int nAllPts = computeNumberOfAllPoints(mp, scale);
     float pointToJoinPixSizeDist = (float)mp->_ini.get<double>("Fuser.pointToJoinPixSizeDist", 2.0f);
     ALICEVISION_LOG_INFO("pointToJoinPixSizeDist: " << pointToJoinPixSizeDist);
     int maxpts = 1000000;

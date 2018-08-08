@@ -11,8 +11,11 @@
 #include <aliceVision/camera/cameraCommon.hpp>
 #include <aliceVision/camera/IntrinsicBase.hpp>
 #include <aliceVision/geometry/Pose3.hpp>
+#include <aliceVision/multiview/projection.hpp>
 
 #include <vector>
+#include <sstream>
+
 
 namespace aliceVision {
 namespace camera {
@@ -22,6 +25,8 @@ namespace camera {
 class Pinhole : public IntrinsicBase
 {
   public:
+
+  Pinhole() = default;
 
   Pinhole(
     unsigned int w, unsigned int h,
@@ -33,14 +38,15 @@ class Pinhole : public IntrinsicBase
   }
 
   Pinhole(
-    unsigned int w = 0, unsigned int h = 0,
-    double focal_length_pix = 0.0,
-    double ppx = 0.0, double ppy = 0.0)
-    :IntrinsicBase(w,h)
+    unsigned int w, unsigned int h,
+    double focal_length_pix,
+    double ppx, double ppy, const std::vector<double>& distortionParams = {})
+    : IntrinsicBase(w,h)
+    , _distortionParams(distortionParams)
   {
     setK(focal_length_pix, ppx, ppy);
   }
-  
+
   virtual ~Pinhole() {}
 
   virtual Pinhole* clone() const { return new Pinhole(*this); }
@@ -51,7 +57,7 @@ class Pinhole : public IntrinsicBase
   virtual EINTRINSIC getType() const { return PINHOLE_CAMERA; }
   std::string getTypeStr() const { return EINTRINSIC_enumToString(getType()); }
 
-  double getPxFocalLength() const { return _K(0,0); }
+  double getFocalLengthPix() const { return _K(0,0); }
 
   Vec2 getPrincipalPoint() const { return Vec2(_K(0,2), _K(1,2)); }
 
@@ -119,6 +125,12 @@ class Pinhole : public IntrinsicBase
 
   void setDistortionParams(const std::vector<double>& distortionParams)
   {
+    if(distortionParams.size() != _distortionParams.size())
+    {
+        std::stringstream s;
+        s << "Pinhole::setDistortionParams: wrong number of distortion parameters (expected: " << _distortionParams.size() << ", given:" << distortionParams.size() << ").";
+        throw std::runtime_error(s.str());
+    }
     _distortionParams = distortionParams;
   }
 
@@ -129,7 +141,7 @@ class Pinhole : public IntrinsicBase
       return false;
 
     this->setK(params[0], params[1], params[2]);
-    _distortionParams = {params.begin() + 3, params.end()};
+    setDistortionParams({params.begin() + 3, params.end()});
 
     return true;
   }

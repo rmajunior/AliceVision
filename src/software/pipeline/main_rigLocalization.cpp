@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2016 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -12,8 +13,8 @@
 #include <aliceVision/image/io.hpp>
 #include <aliceVision/dataio/FeedProvider.hpp>
 #include <aliceVision/feature/ImageDescriber.hpp>
-#include <aliceVision/sfm/SfMData.hpp>
-#include <aliceVision/sfm/sfmDataIO.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/robustEstimation/estimators.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
@@ -36,15 +37,19 @@
 #include <memory>
 
 #if ALICEVISION_IS_DEFINED(ALICEVISION_HAVE_ALEMBIC)
-#include <aliceVision/sfm/AlembicExporter.hpp>
+#include <aliceVision/sfmDataIO/AlembicExporter.hpp>
 #endif
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
+using namespace aliceVision;
 
 namespace bfs = boost::filesystem;
 namespace bacc = boost::accumulators;
 namespace po = boost::program_options;
-
-using namespace aliceVision;
 
 std::string myToString(std::size_t i, std::size_t zeroPadding)
 {
@@ -252,8 +257,8 @@ int main(int argc, char** argv)
   std::unique_ptr<localization::ILocalizer> localizer;
 
   // load SfMData
-  sfm::SfMData sfmData;
-  if(!sfm::Load(sfmData, sfmFilePath, sfm::ESfMData::ALL))
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmFilePath, sfmDataIO::ESfMData::ALL))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '" + sfmFilePath + "' cannot be read.");
     return EXIT_FAILURE;
@@ -311,11 +316,11 @@ int main(int argc, char** argv)
   }
 
 #if ALICEVISION_IS_DEFINED(ALICEVISION_HAVE_ALEMBIC)
-  sfm::AlembicExporter exporter(exportAlembicFile);
+  sfmDataIO::AlembicExporter exporter(exportAlembicFile);
   exporter.initAnimatedCamera("rig");
-  exporter.addLandmarks(localizer->getSfMData().GetLandmarks());
+  exporter.addLandmarks(localizer->getSfMData().getLandmarks());
   
-  boost::ptr_vector<sfm::AlembicExporter> cameraExporters;
+  boost::ptr_vector<sfmDataIO::AlembicExporter> cameraExporters;
   cameraExporters.reserve(numCameras);
 
   // this contains the full path and the root name of the file without the extension
@@ -323,7 +328,7 @@ int main(int argc, char** argv)
 
   for(std::size_t i = 0; i < numCameras; ++i)
   {
-    cameraExporters.push_back( new sfm::AlembicExporter(basename+".cam"+myToString(i, 2)+".abc"));
+    cameraExporters.push_back( new sfmDataIO::AlembicExporter(basename+".cam"+myToString(i, 2)+".abc"));
     cameraExporters.back().initAnimatedCamera("cam"+myToString(i, 2));
   }
 #endif
@@ -374,7 +379,7 @@ int main(int argc, char** argv)
   while(haveImage)
   {
     // @fixme It's better to have arrays of pointers...
-    std::vector<image::Image<unsigned char> > vec_imageGrey;
+    std::vector<image::Image<float> > vec_imageGrey;
     std::vector<camera::PinholeRadialK3 > vec_queryIntrinsics;
     vec_imageGrey.reserve(numCameras);
     vec_queryIntrinsics.reserve(numCameras);
@@ -382,7 +387,7 @@ int main(int argc, char** argv)
     // for each camera get the image and the associated internal parameters
     for(std::size_t idCamera = 0; idCamera < numCameras; ++idCamera)
     {
-      image::Image<unsigned char> imageGrey;
+      image::Image<float> imageGrey;
       camera::PinholeRadialK3 queryIntrinsics;
       bool hasIntrinsics = false;
       std::string currentImgName;

@@ -12,34 +12,22 @@ set(geometry_files_sources
     rigidTransformation3D.cpp
 )
 
-# Tests
-set(geometry_files_test
-    frustumIntersection_test.cpp
-    halfSpaceIntersection_test.cpp
-    rigidTransformation3D_test.cpp
+alicevision_add_library(aliceVision_geometry
+  SOURCES ${geometry_files_headers} ${geometry_files_sources}
+  PUBLIC_LINKS
+    aliceVision_numeric
+    aliceVision_linearProgramming
+  # PRIVATE_LINKS
+  # TODO: fix cross-dependency
+  # aliceVision_robustEstimation
 )
 
-add_library(aliceVision_geometry
-    ${geometry_files_headers}
-    ${geometry_files_sources}
+# Unit tests
+alicevision_add_test(rigidTransformation3D_test.cpp NAME "geometry_rigidTransformation3D" LINKS aliceVision_geometry)
+alicevision_add_test(halfSpaceIntersection_test.cpp NAME "geometry_halfSpaceIntersection" LINKS aliceVision_geometry)
+alicevision_add_test(frustumIntersection_test.cpp
+  NAME "geometry_frustumIntersection"
+  LINKS aliceVision_geometry
+        aliceVision_multiview
+        aliceVision_multiview_test_data
 )
-
-target_link_libraries(aliceVision_geometry
-  INTERFACE aliceVision_numeric
-            aliceVision_multiview
-            ${CLP_LIBRARIES}
-            ${COINUTILS_LIBRARY}
-            ${OSI_LIBRARY}
-            ${LOG_LIB}
-)
-
-install(TARGETS aliceVision_geometry
-  DESTINATION lib/
-  EXPORT aliceVision-targets
-)
-
-UNIT_TEST(aliceVision rigidTransformation3D    "aliceVision_geometry")
-UNIT_TEST(aliceVision halfSpaceIntersection    "aliceVision_geometry")
-UNIT_TEST(aliceVision frustumIntersection      "aliceVision_geometry;aliceVision_multiview_test_data")
-
-add_custom_target(aliceVision_geometry_ide SOURCES ${geometry_files_headers} ${geometry_files_test})

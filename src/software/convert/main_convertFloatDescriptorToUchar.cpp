@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2016 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -14,7 +15,13 @@
 
 #include <cstdlib>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
+
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
@@ -93,8 +100,8 @@ int main( int argc, char** argv )
     fs::create_directories(outputFolder);
   }
   
-  size_t countFeat = 0;
-  size_t countDesc = 0;
+  std::size_t countFeat = 0;
+  std::size_t countDesc = 0;
 
   fs::directory_iterator iterator(inputFolder);
   for(; iterator != fs::directory_iterator(); ++iterator)

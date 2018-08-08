@@ -1,16 +1,20 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
+// Copyright (c) 2012 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
+#include <aliceVision/sfm/pipeline/regionsIO.hpp>
+#include <aliceVision/sfm/pipeline/pairwiseMatchesIO.hpp>
+#include <aliceVision/feature/svgVisualization.hpp>
+#include <aliceVision/feature/feature.hpp>
 #include <aliceVision/matching/IndMatch.hpp>
 #include <aliceVision/matching/io.hpp>
-#include <aliceVision/image/all.hpp>
-#include <aliceVision/feature/feature.hpp>
 #include <aliceVision/track/Track.hpp>
-#include <aliceVision/sfm/sfm.hpp>
-#include <aliceVision/sfm/pipeline/regionsIO.hpp>
-#include <aliceVision/feature/svgVisualization.hpp>
+#include <aliceVision/image/all.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
 
@@ -22,10 +26,15 @@
 #include <boost/filesystem.hpp>
 #include <boost/progress.hpp>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
 using namespace aliceVision::feature;
 using namespace aliceVision::matching;
-using namespace aliceVision::sfm;
+using namespace aliceVision::sfmData;
 using namespace aliceVision::track;
 using namespace svg;
 
@@ -39,10 +48,12 @@ int main(int argc, char ** argv)
   std::string verboseLevel = system::EVerboseLevel_enumToString(system::Logger::getDefaultVerboseLevel());
   std::string sfmDataFilename;
   std::string outputFolder;
-  std::string featuresFolder;
-  std::string matchesFolder;
+  std::vector<std::string> featuresFolders;
+  std::vector<std::string> matchesFolders;
+
+  // user optional parameters
+
   std::string describerTypesName = feature::EImageDescriberType_enumToString(feature::EImageDescriberType::SIFT);
-  std::string matchesGeometricModel = "f";
 
   po::options_description allParams("AliceVision exportTracks");
 
@@ -52,20 +63,15 @@ int main(int argc, char ** argv)
       "SfMData file.")
     ("output,o", po::value<std::string>(&outputFolder)->required(),
       "Output path for tracks.")
-    ("featuresFolder,f", po::value<std::string>(&featuresFolder)->required(),
-      "Path to a folder containing the extracted features.")
-    ("matchesFolder,m", po::value<std::string>(&matchesFolder)->required(),
-      "Path to a folder in which computed matches are stored.");
+    ("featuresFolders,f", po::value<std::vector<std::string>>(&featuresFolders)->multitoken()->required(),
+      "Path to folder(s) containing the extracted features.")
+    ("matchesFolders,m", po::value<std::vector<std::string>>(&matchesFolders)->multitoken()->required(),
+      "Path to folder(s) in which computed matches are stored.");
 
   po::options_description optionalParams("Optional parameters");
   optionalParams.add_options()
     ("describerTypes,d", po::value<std::string>(&describerTypesName)->default_value(describerTypesName),
       feature::EImageDescriberType_informations().c_str());
-    ("matchesGeometricModel,g", po::value<std::string>(&matchesGeometricModel)->default_value(matchesGeometricModel),
-      "Matches geometric Model :\n"
-      "- f: fundamental matrix\n"
-      "- e: essential matrix\n"
-      "- h: homography matrix");
 
   po::options_description logParams("Log parameters");
   logParams.add_options()
@@ -113,7 +119,7 @@ int main(int argc, char ** argv)
 
   // read SfM Scene (image view names)
   SfMData sfmData;
-  if(!Load(sfmData, sfmDataFilename, ESfMData(VIEWS|INTRINSICS)))
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData(sfmDataIO::VIEWS|sfmDataIO::INTRINSICS)))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '" << sfmDataFilename << "' cannot be read.");
     return EXIT_FAILURE;
@@ -124,7 +130,7 @@ int main(int argc, char ** argv)
 
   // read the features
   feature::FeaturesPerView featuresPerView;
-  if(!sfm::loadFeaturesPerView(featuresPerView, sfmData, featuresFolder, describerMethodTypes))
+  if(!sfm::loadFeaturesPerView(featuresPerView, sfmData, featuresFolders, describerMethodTypes))
   {
     ALICEVISION_LOG_ERROR("Invalid features");
     return EXIT_FAILURE;
@@ -132,13 +138,13 @@ int main(int argc, char ** argv)
 
   // read the matches
   matching::PairwiseMatches pairwiseMatches;
-  if(!sfm::loadPairwiseMatches(pairwiseMatches, sfmData, matchesFolder, describerMethodTypes, matchesGeometricModel))
+  if(!sfm::loadPairwiseMatches(pairwiseMatches, sfmData, matchesFolders, describerMethodTypes))
   {
     ALICEVISION_LOG_ERROR("Invalid matches file");
     return EXIT_FAILURE;
   }
 
-  const std::size_t viewCount = sfmData.GetViews().size();
+  const std::size_t viewCount = sfmData.getViews().size();
   ALICEVISION_LOG_INFO("# views: " << viewCount);
 
   // compute tracks from matches
@@ -146,11 +152,11 @@ int main(int argc, char ** argv)
   {
     const aliceVision::matching::PairwiseMatches& map_Matches = pairwiseMatches;
     track::TracksBuilder tracksBuilder;
-    tracksBuilder.Build(map_Matches);
-    tracksBuilder.Filter();
-    tracksBuilder.ExportToSTL(mapTracks);
+    tracksBuilder.build(map_Matches);
+    tracksBuilder.filter();
+    tracksBuilder.exportToSTL(mapTracks);
 
-    ALICEVISION_LOG_INFO("# tracks: " << tracksBuilder.NbTracks());
+    ALICEVISION_LOG_INFO("# tracks: " << tracksBuilder.nbTracks());
   }
 
   // for each pair, export the matches
@@ -159,14 +165,14 @@ int main(int argc, char ** argv)
 
   for(std::size_t I = 0; I < viewCount; ++I)
   {
-    auto itI = sfmData.GetViews().begin();
+    auto itI = sfmData.getViews().begin();
     std::advance(itI, I);
 
     const View* viewI = itI->second.get();
 
     for(std::size_t J = I+1; J < viewCount; ++J, ++myProgressBar)
     {
-      auto itJ = sfmData.GetViews().begin();
+      auto itJ = sfmData.getViews().begin();
       std::advance(itJ, J);
 
       const View* viewJ = itJ->second.get();
@@ -184,7 +190,7 @@ int main(int argc, char ** argv)
       setImageIndex.insert(viewI->getViewId());
       setImageIndex.insert(viewJ->getViewId());
 
-      TracksUtilsMap::GetCommonTracksInImages(setImageIndex, mapTracks, mapTracksCommon);
+      tracksUtilsMap::getCommonTracksInImages(setImageIndex, mapTracks, mapTracksCommon);
 
       if(mapTracksCommon.empty())
       {
@@ -192,7 +198,7 @@ int main(int argc, char ** argv)
       }
       else
       {
-        svgDrawer svgStream(dimImageI.first + dimImageJ.first, max(dimImageI.second, dimImageJ.second));
+        svgDrawer svgStream(dimImageI.first + dimImageJ.first, std::max(dimImageI.second, dimImageJ.second));
         svgStream.drawImage(viewImagePathI, dimImageI.first, dimImageI.second);
         svgStream.drawImage(viewImagePathJ, dimImageJ.first, dimImageJ.second, dimImageI.first);
 
@@ -237,7 +243,7 @@ int main(int argc, char ** argv)
 
         fs::path outputFilename = fs::path(outputFolder) / std::string(std::to_string(viewI->getViewId()) + "_" + std::to_string(viewJ->getViewId()) + "_" + std::to_string(mapTracksCommon.size()) + ".svg");
 
-        ofstream svgFile(outputFilename.string());
+        std::ofstream svgFile(outputFilename.string());
         svgFile << svgStream.closeSvgFile().str();
       }
     }

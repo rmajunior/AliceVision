@@ -1,21 +1,29 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
+// Copyright (c) 2015 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/sfm/sfm.hpp>
-#include <aliceVision/config.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
+#include <aliceVision/sfm/colorizeTracks.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
+#include <aliceVision/config.hpp>
 
 #include <boost/program_options.hpp>
 
 #include <string>
 #include <vector>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
-using namespace aliceVision::image;
-using namespace aliceVision::sfm;
+
 namespace po = boost::program_options;
 
 // Convert from a SfMData format to another
@@ -84,25 +92,25 @@ int main(int argc, char **argv)
     return EXIT_FAILURE;
   }
 
-  // Load input SfMData scene
-  SfMData sfm_data;
-  if(!Load(sfm_data, sfmDataFilename, ESfMData(ALL)))
+  // load input SfMData scene
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData::ALL))
   {
-    ALICEVISION_LOG_ERROR("Error: The input SfMData file '" + sfmDataFilename + "' cannot be read.");
+    ALICEVISION_LOG_ERROR("The input SfMData file '" + sfmDataFilename + "' cannot be read.");
     return EXIT_FAILURE;
   }
 
-  // Compute the scene structure color
-  if (!ColorizeTracks(sfm_data))
+  // compute the scene structure color
+  if(!sfm::colorizeTracks(sfmData))
   {
     ALICEVISION_LOG_ERROR("Error while trying to colorize the tracks! Aborting...");
   }
 
-  // Export the SfMData scene in the expected format
+  // export the SfMData scene in the expected format
   ALICEVISION_LOG_INFO("Saving output result to " << outputSfMDataFilename << "...");
-  if (!Save(sfm_data, outputSfMDataFilename.c_str(), ESfMData(ALL)))
+  if(!sfmDataIO::Save(sfmData, outputSfMDataFilename.c_str(), sfmDataIO::ESfMData::ALL))
   {
-    ALICEVISION_LOG_ERROR("Error: The output SfMData file '" + sfmDataFilename + "' cannot be save.");
+    ALICEVISION_LOG_ERROR("The output SfMData file '" + sfmDataFilename + "' cannot be save.");
     return EXIT_FAILURE;
   }
 

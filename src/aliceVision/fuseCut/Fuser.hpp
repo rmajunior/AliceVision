@@ -1,4 +1,5 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2017 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -13,6 +14,9 @@
 
 namespace aliceVision {
 namespace fuseCut {
+
+unsigned long computeNumberOfAllPoints(const mvsUtils::MultiViewParams* mp, int scale);
+
 
 class Fuser
 {
@@ -34,7 +38,6 @@ public:
 
     /// @brief Compute average pixel size in the given hexahedron
     float computeAveragePixelSizeInHexahedron(Point3d* hexah, int step, int scale);
-    unsigned long computeNumberOfAllPoints(int scale);
 
     Voxel estimateDimensions(Point3d* vox, Point3d* newSpace, int scale, int maxOcTreeDim);
 

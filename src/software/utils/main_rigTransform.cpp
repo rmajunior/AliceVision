@@ -1,13 +1,13 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2016 AliceVision contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
+#include <aliceVision/sfmDataIO/AlembicExporter.hpp>
 #include <aliceVision/rig/Rig.hpp>
-#include <aliceVision/system/Logger.hpp>
-#include <aliceVision/sfm/SfMData.hpp>
-#include <aliceVision/sfm/sfmDataIO.hpp>
-#include <aliceVision/sfm/AlembicExporter.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
 
@@ -19,8 +19,13 @@
 #include <chrono>
 #include <memory>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
-using namespace aliceVision::sfm;
+
 namespace po = boost::program_options;
 
 static std::vector<double> ReadIntrinsicsFile(const std::string& fname)
@@ -109,8 +114,8 @@ int main(int argc, char** argv)
   assert(!extrinsics.empty());
 
   // import sfm data
-  SfMData sfmData;
-  if(!Load(sfmData, importFile, ESfMData::ALL))
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, importFile, sfmDataIO::ESfMData::ALL))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '"<< importFile << "' cannot be read");
     return EXIT_FAILURE;
@@ -118,20 +123,20 @@ int main(int argc, char** argv)
 
   // load intrinsics
   auto v = ReadIntrinsicsFile(calibFile);
-  aliceVision::camera::PinholeRadialK3 intrinsics = aliceVision::camera::PinholeRadialK3(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+  camera::PinholeRadialK3 intrinsics = camera::PinholeRadialK3(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
 
   // export to abc
-  aliceVision::sfm::AlembicExporter exporter(exportFile);
+  sfmDataIO::AlembicExporter exporter(exportFile);
   exporter.initAnimatedCamera("camera");
 
   std::size_t idx = 0;
-  for (auto &p : sfmData.GetPoses())
+  for (auto &p : sfmData.getPoses())
   {
-    const aliceVision::geometry::Pose3 rigPose = extrinsics[0].inverse() * p.second;
+    const geometry::Pose3 rigPose = extrinsics[0].inverse() * p.second.getTransform();
     exporter.addCameraKeyframe(rigPose, &intrinsics, "", idx, idx);
     ++idx;
   }
-  exporter.addLandmarks(sfmData.GetLandmarks());
+  exporter.addLandmarks(sfmData.getLandmarks());
 
   return EXIT_SUCCESS;
 }

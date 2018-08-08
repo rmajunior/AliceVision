@@ -34,12 +34,12 @@ public:
     , _isOriented(isOriented)
   {
     // Configure VLFeat
-    vl_constructor();
+    VLFeatInstance::initialize();
   }
 
   ~ImageDescriber_SIFT_vlfeatFloat()
   {
-    vl_destructor();
+    VLFeatInstance::destroy();
   }
 
   /**
@@ -109,7 +109,7 @@ public:
    */
   bool describe(const image::Image<float>& image,
     std::unique_ptr<Regions>& regions,
-    const image::Image<unsigned char>* mask = NULL) override
+    const image::Image<unsigned char>* mask = nullptr) override
   {
     return extractSIFT<float>(image, regions, _params, _isOriented, mask);
   }

@@ -1,22 +1,29 @@
 // This file is part of the AliceVision project.
+// Copyright (c) 2015 AliceVision contributors.
+// Copyright (c) 2015 openMVG contributors.
 // This Source Code Form is subject to the terms of the Mozilla Public License,
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#include <aliceVision/config.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <aliceVision/sfmDataIO/sfmDataIO.hpp>
 #include <aliceVision/sfm/sfm.hpp>
 #include <aliceVision/sfm/pipeline/regionsIO.hpp>
 #include <aliceVision/matching/IndMatch.hpp>
 #include <aliceVision/system/Timer.hpp>
 #include <aliceVision/system/Logger.hpp>
 #include <aliceVision/system/cmdline.hpp>
+#include <aliceVision/config.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
+// These constants define the current software version.
+// They must be updated when the command line is changed.
+#define ALICEVISION_SOFTWARE_VERSION_MAJOR 1
+#define ALICEVISION_SOFTWARE_VERSION_MINOR 0
+
 using namespace aliceVision;
-using namespace aliceVision::sfm;
-using namespace std;
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -29,13 +36,12 @@ int main(int argc, char **argv)
   std::string verboseLevel = system::EVerboseLevel_enumToString(system::Logger::getDefaultVerboseLevel());
   std::string sfmDataFilename;
   std::string outSfMDataFilename;
-  std::string featuresFolder;
+  std::vector<std::string> featuresFolders;
 
   // user optional parameters
 
   std::string describerTypesName = feature::EImageDescriberType_enumToString(feature::EImageDescriberType::SIFT);
-  std::string matchesFolder;
-  std::string matchesGeometricModel = "f";
+  std::vector<std::string> matchesFolders;
 
   po::options_description allParams("AliceVision ComputeStructureFromKnownPoses");
 
@@ -43,22 +49,17 @@ int main(int argc, char **argv)
   requiredParams.add_options()
     ("input,i", po::value<std::string>(&sfmDataFilename)->required(),
       "SfMData file.")
-    ("featuresFolder,f", po::value<std::string>(&featuresFolder)->required(),
-      "Path to a folder containing the extracted features.")
     ("output,o", po::value<std::string>(&outSfMDataFilename)->required(),
-      "Output path for the features and descriptors files (*.feat, *.desc).");
+      "Output path for the features and descriptors files (*.feat, *.desc).")
+    ("featuresFolders,f", po::value<std::vector<std::string>>(&featuresFolders)->multitoken()->required(),
+      "Path to folder(s) containing the extracted features.");
 
   po::options_description optionalParams("Optional parameters");
   optionalParams.add_options()
     ("describerTypes,d", po::value<std::string>(&describerTypesName)->default_value(describerTypesName),
       feature::EImageDescriberType_informations().c_str())
-    ("matchesFolder,m", po::value<std::string>(&matchesFolder)->default_value(matchesFolder),
-      "Path to a folder containing the matches.")
-    ("matchesGeometricModel,g", po::value<std::string>(&matchesGeometricModel)->default_value(matchesGeometricModel),
-      "Matches geometric Model :\n"
-      "* f: fundamental matrix\n"
-      "* e: essential matrix\n"
-      "* h: homography matrix");
+    ("matchesFolders,m", po::value<std::vector<std::string>>(&matchesFolders)->multitoken()->required(),
+      "Path to folder(s) in which computed matches are stored.");
 
   po::options_description logParams("Log parameters");
   logParams.add_options()
@@ -95,92 +96,88 @@ int main(int argc, char **argv)
   ALICEVISION_COUT("Program called with the following parameters:");
   ALICEVISION_COUT(vm);
 
-
   // set verbose level
   system::Logger::get()->setLogLevel(verboseLevel);
   
-  // Load input SfMData scene
-  SfMData sfm_data;
-  if (!Load(sfm_data, sfmDataFilename, ESfMData(VIEWS|INTRINSICS|EXTRINSICS)))
+  // load input SfMData scene
+  sfmData::SfMData sfmData;
+  if(!sfmDataIO::Load(sfmData, sfmDataFilename, sfmDataIO::ESfMData(sfmDataIO::VIEWS|sfmDataIO::INTRINSICS|sfmDataIO::EXTRINSICS)))
   {
     ALICEVISION_LOG_ERROR("The input SfMData file '" << sfmDataFilename << "' cannot be read.");
     return EXIT_FAILURE;
   }
 
-  // Init the regions_type from the image describer file (used for image regions extraction)
+  // init the regions_type from the image describer file (used for image regions extraction)
   using namespace aliceVision::feature;
   
-  // Get imageDescriberMethodType
+  // get imageDescriberMethodType
   std::vector<EImageDescriberType> describerMethodTypes = EImageDescriberType_stringToEnums(describerTypesName);
 
-  // Prepare the Regions provider
-  RegionsPerView regionsPerView;
-  if(!sfm::loadRegionsPerView(regionsPerView, sfm_data, featuresFolder, describerMethodTypes))
+  // prepare the Regions provider
+  feature::RegionsPerView regionsPerView;
+  if(!sfm::loadRegionsPerView(regionsPerView, sfmData, featuresFolders, describerMethodTypes))
   {
     ALICEVISION_LOG_ERROR("Invalid regions.");
     return EXIT_FAILURE;
   }
 
-  //--
-  //- Pair selection method:
-  //  - geometry guided -> camera frustum intersection,
-  //  - putative matches guided (photometric matches)
-  //     (keep pairs that have valid Intrinsic & Pose ids).
-  //--
+  // Pair selection method:
+  // - geometry guided -> camera frustum intersection,
+  // - putative matches guided (photometric matches)
+  //   (keep pairs that have valid Intrinsic & Pose ids).
   PairSet pairs;
-  if (matchesFolder.empty())
+  if(matchesFolders.empty())
   {
-    // No image pair provided, so we use cameras frustum intersection.
-    // Build the list of connected images pairs from frustum intersections
-    pairs = FrustumFilter(sfm_data).getFrustumIntersectionPairs();
+    // no image pair provided, so we use cameras frustum intersection.
+    // build the list of connected images pairs from frustum intersections
+    pairs = sfm::FrustumFilter(sfmData).getFrustumIntersectionPairs();
   }
   else
   {
-    // Load pre-computed matches
+    // load pre-computed matches
     matching::PairwiseMatches matches;
-    if(!sfm::loadPairwiseMatches(matches, sfm_data, matchesFolder, describerMethodTypes, matchesGeometricModel))
+    if(!sfm::loadPairwiseMatches(matches, sfmData, matchesFolders, describerMethodTypes))
       return EXIT_FAILURE;
 
     pairs = matching::getImagePairs(matches);
-    // Keep only Pairs that belong to valid view indexes.
-    const std::set<IndexT> valid_viewIdx = sfm_data.getValidViews();
-    pairs = Pair_filter(pairs, valid_viewIdx);
+    // keep only Pairs that belong to valid view indexes.
+    const std::set<IndexT> valid_viewIdx = sfmData.getValidViews();
+    pairs = sfm::Pair_filter(pairs, valid_viewIdx);
   }
 
   aliceVision::system::Timer timer;
 
-  // Clear previous 3D landmarks
-  sfm_data.structure.clear();
+  // clear previous 3D landmarks
+  sfmData.structure.clear();
 
-  //------------------------------------------
-  // Compute Structure from known camera poses
-  //------------------------------------------
-  StructureEstimationFromKnownPoses structure_estimator;
-  structure_estimator.match(sfm_data, pairs, regionsPerView);
+  // compute Structure from known camera poses
+  sfm::StructureEstimationFromKnownPoses structureEstimator;
+  structureEstimator.match(sfmData, pairs, regionsPerView);
 
-  // Unload descriptors before triangulation
+  // unload descriptors before triangulation
   regionsPerView.clearDescriptors();
 
-  // Filter matches
-  structure_estimator.filter(sfm_data, pairs, regionsPerView);
-  // Create 3D landmarks
-  structure_estimator.triangulate(sfm_data, regionsPerView);
+  // filter matches
+  structureEstimator.filter(sfmData, pairs, regionsPerView);
 
-  RemoveOutliers_AngleError(sfm_data, 2.0);
+  // create 3D landmarks
+  structureEstimator.triangulate(sfmData, regionsPerView);
+
+  sfm::RemoveOutliers_AngleError(sfmData, 2.0);
 
   ALICEVISION_LOG_INFO("Structure estimation took (s): " << timer.elapsed() << "." << std::endl
-    << "\t- # landmarks found: " << sfm_data.GetLandmarks().size());
+    << "\t- # landmarks found: " << sfmData.getLandmarks().size());
 
-  if (fs::extension(outSfMDataFilename) != ".ply")
+  if(fs::extension(outSfMDataFilename) != ".ply")
   {
-    Save(sfm_data,
+    sfmDataIO::Save(sfmData,
          (fs::path(outSfMDataFilename).parent_path() / (fs::path(outSfMDataFilename).stem().string() + ".ply")).string(),
-         ESfMData(ALL));
+         sfmDataIO::ESfMData::ALL);
   }
 
-  if (Save(sfm_data, outSfMDataFilename, ESfMData(ALL)))
+  if(sfmDataIO::Save(sfmData, outSfMDataFilename, sfmDataIO::ESfMData::ALL))
     return EXIT_SUCCESS;
   
-  ALICEVISION_LOG_ERROR("Can't save the output SfMData");
+  ALICEVISION_LOG_ERROR("Can't save the output SfMData.");
   return EXIT_FAILURE;
 }
