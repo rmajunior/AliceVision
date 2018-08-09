@@ -4,7 +4,7 @@
 // v. 2.0. If a copy of the MPL was not distributed with this file,
 // You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#define BOOST_TEST_MODULE F10Solver
+#define BOOST_TEST_MODULE essentialF10Solver
 
 #include <aliceVision/multiview/essentialF10Solver.hpp>
 
@@ -13,20 +13,9 @@
 
 #include <vector>
 
-
 using namespace aliceVision;
 
-bool isEqual(const Mat first, const Mat second)
-{
-  const double eps = std::max(first.cwiseAbs().maxCoeff(), second.cwiseAbs().maxCoeff()) * 1e-1;	// there are very numericaly senzitive solutions as so as the stable ones
-  //std::cout << first << "\n\n";
-  //std::cout << second << "\n\n";
-  //std::cout << first - second << "\n\n";
-  //std::cout << (first - second).cwiseAbs().maxCoeff() << " < " << eps << "\n\n\n";
-	return ((first - second).cwiseAbs().maxCoeff() < eps);
-}
-
-BOOST_AUTO_TEST_CASE(RelativePoseF10_8solutions)
+BOOST_AUTO_TEST_CASE(RelativePoseF10_8_solutions)
 {
   // input data
 	Mat X = Mat(10, 2);
@@ -70,23 +59,23 @@ BOOST_AUTO_TEST_CASE(RelativePoseF10_8solutions)
   Mat2X resL4(2, 1); resL4 << -3.004792949356860e+01,  1.442424098845748e+02; resL.push_back(resL4);
   Mat2X resL5(2, 1); resL5 <<  5.619131137084262e+00,  1.528997232119745e+01; resL.push_back(resL5);
   Mat2X resL6(2, 1); resL6 << -1.359819306123174e+00, -3.194231629423156e+02; resL.push_back(resL6);
-	Mat2X resL7(2, 1); resL7 << -7.668121663596985e+00, -1.015843563423398e+01; resL.push_back(resL7);
-	Mat2X resL8(2, 1); resL8 << -8.478427431999348e+00, -4.469547181112368e+00; resL.push_back(resL8);
+  Mat2X resL7(2, 1); resL7 << -7.668121663596985e+00, -1.015843563423398e+01; resL.push_back(resL7);
+  Mat2X resL8(2, 1); resL8 << -8.478427431999348e+00, -4.469547181112368e+00; resL.push_back(resL8);
 
   // process
 	std::vector<Mat3> F;
 	std::vector<Mat21> L;
 
-	F10RelativePose(X, U, &F, &L);
+  F10RelativePose(X, U, F, L);
 
   // test results
   if(resF.size() != F.size())
     BOOST_CHECK(false);
-  for(int i = 0; i < resF.size(); ++i)
-		BOOST_CHECK(isEqual(resF.at(i), F.at(i)) && isEqual(resL.at(i), L.at(i)));
+  for(Eigen::Index i = 0; i < resF.size(); ++i)
+    BOOST_CHECK(resF.at(i).isApprox(F.at(i), 1e-1) && resL.at(i).isApprox(L.at(i), 1e-1));
 }
 
-BOOST_AUTO_TEST_CASE(RelativePoseF10_2solutions)
+BOOST_AUTO_TEST_CASE(RelativePoseF10_2_solutions)
 {
   // input data
 	Mat X = Mat(10, 2);
@@ -122,14 +111,14 @@ BOOST_AUTO_TEST_CASE(RelativePoseF10_2solutions)
   Mat21 resL2; resL2 <<  1.258548483732838e+01, -2.918230091342369e+03; resL.push_back(resL2);
 
   // process
-	std::vector<Mat3> F;
+  std::vector<Mat3> F;
 	std::vector<Mat21> L;
 
-	F10RelativePose(X, U, &F, &L);
+  F10RelativePose(X, U, F, L);
 
   // test results
   if(resF.size() != F.size())
     BOOST_CHECK(false);
-  for(int i = 0; i < resF.size(); ++i)
-		BOOST_CHECK(isEqual(resF.at(i), F.at(i)) && isEqual(resL.at(i), L.at(i)));
+  for(Eigen::Index i = 0; i < resF.size(); ++i)
+    BOOST_CHECK(resF.at(i).isApprox(F.at(i), 1e-1) && resL.at(i).isApprox(L.at(i), 1e-1));
 }
