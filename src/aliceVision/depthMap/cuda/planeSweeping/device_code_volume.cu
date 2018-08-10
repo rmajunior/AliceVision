@@ -43,6 +43,9 @@ __global__ void volume_slice_kernel(
     if( x >= width  ) return;
     if( y >= height ) return;
 
+    const unsigned char occluded = tex2D(r4tex, x+0.5f, y+0.5f).w;
+    if( occluded == 1 ) return;
+
     const int2 pix = make_int2( x, y );
 
     patch ptcho;
