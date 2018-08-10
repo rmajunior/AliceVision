@@ -7,26 +7,11 @@
 namespace aliceVision {
 namespace depthMap {
 
-__device__ void volume_computePatch(patch& ptch, int depthid, const int2& pix)
+inline __device__ void volume_computePatch( patch& ptch, const float fpPlaneDepth, const int2& pix)
 {
     float3 p;
     float pixSize;
 
-    float fpPlaneDepth = tex2D(depthsTex, depthid, 0);
-    p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth);
-    pixSize = computePixSize(p);
-
-    ptch.p = p;
-    ptch.d = pixSize;
-    computeRotCSEpip(ptch, p);
-}
-
-__device__ void volume_computePatch( float* depths_dev, patch& ptch, int depthid, const int2& pix)
-{
-    float3 p;
-    float pixSize;
-
-    float fpPlaneDepth = depths_dev[depthid];
     p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth);
     pixSize = computePixSize(p);
 
@@ -36,18 +21,16 @@ __device__ void volume_computePatch( float* depths_dev, patch& ptch, int depthid
 }
 
 __global__ void volume_slice_kernel(
-                                    int nsearchdepths,
-                                    float* depths_dev, int ndepths,
+                                    float* depths_dev,
                                     int width, int height, int wsh,
                                     const float gammaC, const float gammaP, const float epipShift,
                                     int* volume, int volume_s, int volume_p,
                                     int volStepXY,
-                                    int volDimX, int volDimY, int volDimZ )
+                                    int volDimX, int volDimY )
 {
     const int vx = blockIdx.x * blockDim.x + threadIdx.x;
-    const int& depth_init = threadIdx.y;
-    const int& depth_step = blockDim.y;
-    const int vy = blockIdx.z * blockDim.z + threadIdx.z;
+    const int vy = blockIdx.y * blockDim.y + threadIdx.y;
+    const int vz = blockIdx.z;
 
     if( vx >= volDimX ) return;
     if( vy >= volDimY ) return;
@@ -55,33 +38,25 @@ __global__ void volume_slice_kernel(
     const int x = vx * volStepXY;
     const int y = vy * volStepXY;
 
+    const float fpPlaneDepth = depths_dev[vz];
+
     if( x >= width  ) return;
     if( y >= height ) return;
 
     const int2 pix = make_int2( x, y );
-    const int depthlimit = min(ndepths,volDimZ);
-    for( int vz = depth_init; vz < depthlimit; vz+=depth_step )
-    {
-        // const int depthid = i;
-        patch ptcho;
-        volume_computePatch(depths_dev, ptcho, vz, pix);
 
-        float fsim = compNCCby3DptsYK(ptcho, wsh, width, height, gammaC, gammaP, epipShift);
-        // unsigned char sim = (unsigned char)(((fsim+1.0f)/2.0f)*255.0f);
+    patch ptcho;
+    volume_computePatch(ptcho, fpPlaneDepth, pix);
 
-        float fminVal = -1.0f;
-        float fmaxVal = 1.0f;
-        fsim = (fsim - fminVal) / (fmaxVal - fminVal);
-        fsim = fminf(1.0f, fmaxf(0.0f, fsim));
-        int sim = (unsigned char)(fsim * 255.0f); // upcast to int due to atomicMin
+    float fsim = compNCCby3DptsYK(ptcho, wsh, width, height, gammaC, gammaP, epipShift);
 
-        // coalescent
+    const float fminVal = -1.0f;
+    const float fmaxVal = 1.0f;
+    fsim = (fsim - fminVal) / (fmaxVal - fminVal);
+    fsim = fminf(1.0f, fmaxf(0.0f, fsim));
+    int sim = (unsigned char)(fsim * 255.0f); // upcast to int due to atomicMin
 
-        // int vz = sdptid;//depthid;
-        // const int& vz = depthid;
-
-        *get3DBufferAt(volume, volume_s, volume_p, vx, vy, vz) = sim;
-    }
+    *get3DBufferAt(volume, volume_s, volume_p, vx, vy, vz) = sim;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

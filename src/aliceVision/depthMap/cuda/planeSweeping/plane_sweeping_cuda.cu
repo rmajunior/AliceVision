@@ -1082,22 +1082,27 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 
     //--------------------------------------------------------------------------------------------------
     // compute similarity volume
-    int xsteps = width / volStepXY;
-    int ysteps = height / volStepXY;
+    const int xsteps = width / volStepXY;
+    const int ysteps = height / volStepXY;
+
     dim3 volume_slice_kernel_grid( divUp(xsteps, volume_slice_kernel_block.x),
-                                   1,
-                                   divUp(ysteps, volume_slice_kernel_block.z) );
+                                   divUp(ysteps, volume_slice_kernel_block.y),
+                                   min( (int)depths_dev.getSize(), volDimZ )
+                                 );
 
     volume_slice_kernel
         <<<volume_slice_kernel_grid, volume_slice_kernel_block>>>
-        ( nDepthsToSearch,
-          depths_dev.getBuffer(), depths_dev.getSize(),
+        (
+          // nDepthsToSearch,
+          depths_dev.getBuffer(),
+          // depths_dev.getSize(),
           width, height,
           wsh,
           gammaC, gammaP, epipShift,
           vol_dmp.getBuffer(), vol_dmp.stride()[1], vol_dmp.stride()[0],
           volStepXY,
-          volDimX, volDimY, volDimZ );
+          volDimX, volDimY );
+          // , volDimZ );
     CHECK_CUDA_ERROR();
 
     cudaDeviceSynchronize();
