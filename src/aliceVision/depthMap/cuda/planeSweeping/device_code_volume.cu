@@ -60,11 +60,11 @@ __global__ void volume_slice_kernel(
 
     const int2 pix = make_int2( x, y );
     const int depthlimit = min(ndepths,volDimZ);
-    for( int i = depth_init; i < depthlimit; i+=depth_step )
+    for( int vz = depth_init; vz < depthlimit; vz+=depth_step )
     {
-        const int depthid = i;
+        // const int depthid = i;
         patch ptcho;
-        volume_computePatch(depths_dev, ptcho, depthid, pix);
+        volume_computePatch(depths_dev, ptcho, vz, pix);
 
         float fsim = compNCCby3DptsYK(ptcho, wsh, width, height, gammaC, gammaP, epipShift);
         // unsigned char sim = (unsigned char)(((fsim+1.0f)/2.0f)*255.0f);
@@ -78,7 +78,7 @@ __global__ void volume_slice_kernel(
         // coalescent
 
         // int vz = sdptid;//depthid;
-        const int& vz = depthid;
+        // const int& vz = depthid;
 
         *get3DBufferAt(volume, volume_s, volume_p, vx, vy, vz) = sim;
     }
