@@ -1100,6 +1100,7 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
           volDimX, volDimY, volDimZ );
     CHECK_CUDA_ERROR();
 
+    cudaDeviceSynchronize();
     cudaUnbindTexture(r4tex);
     cudaUnbindTexture(t4tex);
 
