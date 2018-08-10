@@ -33,12 +33,45 @@ namespace depthMap {
                                                                               \
 }
 
+/* CUDA can help us to find good block sizes for a kernel, depending
+ * on architecture. Call configure_* functions and use *_block
+ * afterwards.
+ */
+static bool volume_slice_kernel_block_set = false;
+static dim3 volume_slice_kernel_block( 32, 1, 1 ); // minimal default settings
+
 
 // Round a / b to nearest higher integer value.
 inline unsigned int divUp(unsigned int a, unsigned int b) {
   return (a % b != 0) ? (a / b + 1) : (a / b);
 }
 
+__host__ void configure_volume_slice_kernel( )
+{
+    if( volume_slice_kernel_block_set ) return;
+    volume_slice_kernel_block_set = true;
+
+    int recommendedMinGridSize;
+    int recommendedBlockSize;
+    cudaError_t err;
+    err = cudaOccupancyMaxPotentialBlockSize( &recommendedMinGridSize,
+                                              &recommendedBlockSize,
+                                              volume_slice_kernel,
+                                              0, // dynamic shared mem size: none used
+                                              0 ); // no block size limit, 1 thread OK
+    if( err != cudaSuccess )
+    {
+        ALICEVISION_LOG_DEBUG( "cudaOccupancyMaxPotentialBlockSize failed for kernel volume_slice_kernel, using defaults" );
+    }
+    else
+    {
+        if( recommendedBlockSize > 32 )
+        {
+            volume_slice_kernel_block.x = 32;
+            volume_slice_kernel_block.y = divUp( recommendedBlockSize, 32 );
+        }
+    }
+}
 __host__ float3 ps_M3x3mulV3(float* M3x3, const float3& V)
 {
     return make_float3(M3x3[0] * V.x + M3x3[3] * V.y + M3x3[6] * V.z, M3x3[1] * V.x + M3x3[4] * V.y + M3x3[7] * V.z,
@@ -1000,14 +1033,16 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
         cudaThreadSynchronize();
     };
 
+    configure_volume_slice_kernel();
+
     //--------------------------------------------------------------------------------------------------
     // compute similarity volume
     int xsteps = width / volStepXY;
     int ysteps = height / volStepXY;
-    dim3 block(32, 8, 1);
-    dim3 grid( divUp(xsteps, block.x),
-               1,
-               divUp(ysteps, block.z) );
+    const dim3& block = volume_slice_kernel_block;
+    dim3        grid( divUp(xsteps, block.x),
+                      1,
+                      divUp(ysteps, block.z) );
     volume_slice_kernel<<<grid, block>>>( nDepthsToSearch,
                                           depths_dev.getBuffer(), depths_dev.getSize(),
                                           width, height,
