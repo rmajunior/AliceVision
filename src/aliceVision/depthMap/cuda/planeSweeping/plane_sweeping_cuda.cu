@@ -40,6 +40,8 @@ namespace depthMap {
 static bool volume_slice_kernel_block_set = false;
 static dim3 volume_slice_kernel_block( 32, 1, 1 ); // minimal default settings
 
+static bool init_kernel_2Dint_block_set = false;
+static dim3 init_kernel_2Dint_block( 32, 1, 1 );
 
 // Round a / b to nearest higher integer value.
 inline unsigned int divUp(unsigned int a, unsigned int b) {
@@ -72,6 +74,33 @@ __host__ void configure_volume_slice_kernel( )
         }
     }
 }
+
+__host__ void configure_init_kernel_2Dint( )
+{
+    if( init_kernel_2Dint_block_set ) return;
+    init_kernel_2Dint_block_set = true;
+
+    int recommendedMinGridSize;
+    int recommendedBlockSize;
+    cudaError_t err;
+    err = cudaOccupancyMaxPotentialBlockSize( &recommendedMinGridSize,
+                                              &recommendedBlockSize,
+                                              init_kernel_2Dint,
+                                              0, // dynamic shared mem size: none used
+                                              0 ); // no block size limit, 1 thread OK
+    if( err != cudaSuccess )
+    {
+        ALICEVISION_LOG_DEBUG( "cudaOccupancyMaxPotentialBlockSize failed for kernel init_kernel_2Dint, using defaults" );
+    }
+    else
+    {
+        if( recommendedBlockSize > 32 )
+        {
+            init_kernel_2Dint_block.x = recommendedBlockSize;
+        }
+    }
+}
+
 __host__ float3 ps_M3x3mulV3(float* M3x3, const float3& V)
 {
     return make_float3(M3x3[0] * V.x + M3x3[3] * V.y + M3x3[6] * V.z, M3x3[1] * V.x + M3x3[4] * V.y + M3x3[7] * V.z,
@@ -1022,6 +1051,7 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 
     //--------------------------------------------------------------------------------------------------
     // init similarity volume
+#if 0
     for(int z = 0; z < volDimZ; z++)
     {
         dim3 blockvol(8, 8, 1);
@@ -1032,6 +1062,21 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
         CHECK_CUDA_ERROR();
         cudaThreadSynchronize();
     };
+#else
+    configure_init_kernel_2Dint();
+
+    /* pitch is always a multiple of 32 bytes (CC 2 and above is at least 128).
+     * Since our elements are int-sized (4 bytes), we can initialize the pitch as well.
+     */
+    const size_t elements        = vol_dmp.getBytes() / sizeof(int);
+    const int    init_kernel_2Dint_grid = divUp( elements, init_kernel_2Dint_block.x );
+
+    init_kernel_2Dint
+        <<<init_kernel_2Dint_grid, init_kernel_2Dint_block>>>
+        ( vol_dmp.getBuffer(),
+          elements,
+          255 );
+#endif
 
     configure_volume_slice_kernel();
 
@@ -1039,18 +1084,20 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
     // compute similarity volume
     int xsteps = width / volStepXY;
     int ysteps = height / volStepXY;
-    const dim3& block = volume_slice_kernel_block;
-    dim3        grid( divUp(xsteps, block.x),
-                      1,
-                      divUp(ysteps, block.z) );
-    volume_slice_kernel<<<grid, block>>>( nDepthsToSearch,
-                                          depths_dev.getBuffer(), depths_dev.getSize(),
-                                          width, height,
-                                          wsh,
-                                          gammaC, gammaP, epipShift,
-                                          vol_dmp.getBuffer(), vol_dmp.stride()[1], vol_dmp.stride()[0],
-                                          volStepXY,
-                                          volDimX, volDimY, volDimZ );
+    dim3 volume_slice_kernel_grid( divUp(xsteps, volume_slice_kernel_block.x),
+                                   1,
+                                   divUp(ysteps, volume_slice_kernel_block.z) );
+
+    volume_slice_kernel
+        <<<volume_slice_kernel_grid, volume_slice_kernel_block>>>
+        ( nDepthsToSearch,
+          depths_dev.getBuffer(), depths_dev.getSize(),
+          width, height,
+          wsh,
+          gammaC, gammaP, epipShift,
+          vol_dmp.getBuffer(), vol_dmp.stride()[1], vol_dmp.stride()[0],
+          volStepXY,
+          volDimX, volDimY, volDimZ );
     CHECK_CUDA_ERROR();
 
     cudaUnbindTexture(r4tex);

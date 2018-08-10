@@ -198,18 +198,18 @@ template <class Type, unsigned Dim> class CudaDeviceMemoryPitched
 {
   Type* buffer;
   size_t pitch;
-  size_t sx, sy, sz;
+  // size_t sx, sy, sz;
   CudaSize<Dim> size;
 public:
   explicit CudaDeviceMemoryPitched(const CudaSize<Dim> &_size)
   {
     size = _size;
-    sx = 1;
-    sy = 1;
-    sz = 1;
-    if (Dim >= 1) sx = _size[0];
-    if (Dim >= 2) sy = _size[1];
-    if (Dim >= 3) sx = _size[2];
+    // sx = 1;
+    // sy = 1;
+    // sz = 1;
+    // if (Dim >= 1) sx = _size[0];
+    // if (Dim >= 2) sy = _size[1];
+    // if (Dim >= 3) sx = _size[2];
     if(Dim == 2)
     {
       cudaError_t err = cudaMallocPitch<Type>(&buffer, &pitch, _size[0] * sizeof(Type), _size[1]);
@@ -218,7 +218,7 @@ public:
         ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
       }
     }
-    if(Dim == 3)
+    else if(Dim == 3)
     {
       cudaExtent extent;
       extent.width = _size[0] * sizeof(Type);
@@ -245,12 +245,12 @@ public:
   explicit inline CudaDeviceMemoryPitched(const CudaHostMemoryHeap<Type, Dim> &rhs)
   {
     size = rhs.getSize();
-    sx = 1;
-    sy = 1;
-    sz = 1;
-    if (Dim >= 1) sx = rhs.getSize()[0];
-    if (Dim >= 2) sy = rhs.getSize()[1];
-    if (Dim >= 3) sx = rhs.getSize()[2];
+    // sx = 1;
+    // sy = 1;
+    // sz = 1;
+    // if (Dim >= 1) sx = rhs.getSize()[0];
+    // if (Dim >= 2) sy = rhs.getSize()[1];
+    // if (Dim >= 3) sx = rhs.getSize()[2];
     if(Dim == 2)
     {
       cudaError_t err = cudaMallocPitch<Type>(&buffer, &pitch, size[0] * sizeof(Type), size[1]);
@@ -259,7 +259,7 @@ public:
         ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
       }
     }
-    if(Dim == 3)
+    else if(Dim == 3)
     {
       cudaExtent extent;
       extent.width = size[0] * sizeof(Type);
