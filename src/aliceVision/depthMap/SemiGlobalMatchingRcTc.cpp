@@ -75,9 +75,9 @@ StaticVector<unsigned char>* SemiGlobalMatchingRcTc::computeDepthSimMapVolume(fl
     volume->reserve(volDimX * volDimY * volDimZ);
     volume->resize_with(volDimX * volDimY * volDimZ, 255);
 
-    StaticVector<int>* volume_tmp = new StaticVector<int>();
-    volume_tmp->reserve(volDimX * volDimY * volDimZ);
-    volume_tmp->resize_with(volDimX * volDimY * volDimZ, 255.0f);
+    StaticVector<float> volume_tmp;
+    volume_tmp.reserve(volDimX * volDimY * volDimZ);
+    volume_tmp.resize_with(volDimX * volDimY * volDimZ, 255.0f);
 
     StaticVector<int>* tcams = new StaticVector<int>();
     tcams->reserve(1);
@@ -95,10 +95,11 @@ StaticVector<unsigned char>* SemiGlobalMatchingRcTc::computeDepthSimMapVolume(fl
 
     for( int i=0; i<volDimX * volDimY * volDimZ; i++ )
     {
-        (*volume)[i] = (unsigned char)((*volume_tmp)[i]);
+#error must not mult with 255 in CUDA kernel !!!! remove that now
+        (*volume)[i] = (unsigned char)( 255.0f * std::max(std::min(volume_tmp[i],1.0f),0.0f) );
     }
 
-    delete volume_tmp;
+    // delete volume_tmp;
 
     if(sp->mp->verbose)
         mvsUtils::printfElapsedTime(tall, "SemiGlobalMatchingRcTc::computeDepthSimMapVolume ");

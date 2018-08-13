@@ -40,8 +40,8 @@ namespace depthMap {
 static bool volume_slice_kernel_block_set = false;
 static dim3 volume_slice_kernel_block( 32, 1, 1 ); // minimal default settings
 
-static bool init_kernel_2Dint_block_set = false;
-static dim3 init_kernel_2Dint_block( 32, 1, 1 );
+static bool init_kernel_2Dfloat_block_set = false;
+static dim3 init_kernel_2Dfloat_block( 32, 1, 1 );
 
 // Round a / b to nearest higher integer value.
 inline unsigned int divUp(unsigned int a, unsigned int b) {
@@ -75,28 +75,28 @@ __host__ void configure_volume_slice_kernel( )
     }
 }
 
-__host__ void configure_init_kernel_2Dint( )
+__host__ void configure_init_kernel_2Dfloat( )
 {
-    if( init_kernel_2Dint_block_set ) return;
-    init_kernel_2Dint_block_set = true;
+    if( init_kernel_2Dfloat_block_set ) return;
+    init_kernel_2Dfloat_block_set = true;
 
     int recommendedMinGridSize;
     int recommendedBlockSize;
     cudaError_t err;
     err = cudaOccupancyMaxPotentialBlockSize( &recommendedMinGridSize,
                                               &recommendedBlockSize,
-                                              init_kernel_2Dint,
+                                              init_kernel_2Dfloat,
                                               0, // dynamic shared mem size: none used
                                               0 ); // no block size limit, 1 thread OK
     if( err != cudaSuccess )
     {
-        ALICEVISION_LOG_DEBUG( "cudaOccupancyMaxPotentialBlockSize failed for kernel init_kernel_2Dint, using defaults" );
+        ALICEVISION_LOG_DEBUG( "cudaOccupancyMaxPotentialBlockSize failed for kernel init_kernel_2Dfloat, using defaults" );
     }
     else
     {
         if( recommendedBlockSize > 32 )
         {
-            init_kernel_2Dint_block.x = recommendedBlockSize;
+            init_kernel_2Dfloat_block.x = recommendedBlockSize;
         }
     }
 }
@@ -1007,7 +1007,7 @@ void ps_SGMAggregateVolumeDir(
 */
 
 static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
-                                CudaDeviceMemoryPitched<int, 3>& vol_dmp, cameraStruct** cams, int ncams,
+                                CudaDeviceMemoryPitched<float, 3>& vol_dmp, cameraStruct** cams, int ncams,
                                 int width, int height,
                                 int volStepXY,
                                 int volDimX, int volDimY, int volDimZ,
@@ -1051,32 +1051,19 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 
     //--------------------------------------------------------------------------------------------------
     // init similarity volume
-#if 0
-    for(int z = 0; z < volDimZ; z++)
-    {
-        dim3 blockvol(8, 8, 1);
-        dim3 gridvol(divUp(volDimX, blockvol.x), divUp(volDimY, blockvol.y), 1);
-
-        volume_initVolume_kernel<int><<<gridvol, blockvol>>>(
-            vol_dmp.getBuffer(), vol_dmp.stride()[1], vol_dmp.stride()[0], volDimX, volDimY, volDimZ, z, 255);
-        CHECK_CUDA_ERROR();
-        cudaThreadSynchronize();
-    };
-#else
-    configure_init_kernel_2Dint();
+    configure_init_kernel_2Dfloat();
 
     /* pitch is always a multiple of 32 bytes (CC 2 and above is at least 128).
      * Since our elements are int-sized (4 bytes), we can initialize the pitch as well.
      */
-    const size_t elements        = vol_dmp.getBytes() / sizeof(int);
-    const int    init_kernel_2Dint_grid = divUp( elements, init_kernel_2Dint_block.x );
+    const size_t elements        = vol_dmp.getBytes() / sizeof(float);
+    const int    init_kernel_2Dfloat_grid = divUp( elements, init_kernel_2Dfloat_block.x );
 
-    init_kernel_2Dint
-        <<<init_kernel_2Dint_grid, init_kernel_2Dint_block>>>
+    init_kernel_2Dfloat
+        <<<init_kernel_2Dfloat_grid, init_kernel_2Dfloat_block>>>
         ( vol_dmp.getBuffer(),
           elements,
-          255 );
-#endif
+          255.0f );
 
     configure_volume_slice_kernel();
 
@@ -1114,7 +1101,7 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 }
 
 float ps_planeSweepingGPUPixelsVolume(CudaArray<uchar4, 2>** ps_texs_arr,
-                                      int* ovol_hmh, cameraStruct** cams, int ncams,
+                                      float* ovol_hmh, cameraStruct** cams, int ncams,
                                       int width, int height,
                                       int volStepXY, int volDimX, int volDimY, int volDimZ,
                                       CudaDeviceMemory<float>& depths_dev,
@@ -1127,7 +1114,7 @@ float ps_planeSweepingGPUPixelsVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 {
     testCUDAdeviceNo(CUDAdeviceNo);
 
-    CudaDeviceMemoryPitched<int, 3> volSim_dmp(CudaSize<3>(volDimX, volDimY, volDimZ));
+    CudaDeviceMemoryPitched<float, 3> volSim_dmp(CudaSize<3>(volDimX, volDimY, volDimZ));
 
     if(verbose)
         pr_printfDeviceMemoryInfo();

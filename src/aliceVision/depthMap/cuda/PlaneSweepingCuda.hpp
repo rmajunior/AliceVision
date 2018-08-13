@@ -111,7 +111,7 @@ public:
                             StaticVector<float>* rcDepthMap, int rc, int tc, int scale, int wsh, float gammaC,
                             float gammaP, float epipShift, int xFrom, int wPart);
 
-    float sweepPixelsToVolume(int nDepthsToSearch, StaticVector<int>* volume,
+    float sweepPixelsToVolume(int nDepthsToSearch, StaticVector<float>& volume,
                               int volDimX, int volDimY, int volDimZ,
                               int volStepXY,
                               StaticVector<float>* depths, int rc, int wsh, float gammaC, float gammaP,

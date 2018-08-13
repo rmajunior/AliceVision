@@ -1570,7 +1570,7 @@ bool PlaneSweepingCuda::refineRcTcDepthMap(bool useTcOrRcPixSize, int nStepsToRe
     return true;
 }
 
-float PlaneSweepingCuda::sweepPixelsToVolume( int nDepthsToSearch, StaticVector<int>* volume,
+float PlaneSweepingCuda::sweepPixelsToVolume( int nDepthsToSearch, StaticVector<float>& volume,
                                               int volDimX, int volDimY, int volDimZ,
                                               int volStepXY,
                                               StaticVector<float>* depths, int rc, int wsh, float gammaC,
@@ -1636,7 +1636,7 @@ float PlaneSweepingCuda::sweepPixelsToVolume( int nDepthsToSearch, StaticVector<
     // sweep
     float volumeMBinGPUMem = ps_planeSweepingGPUPixelsVolume(
         (CudaArray<uchar4, 2>**)ps_texs_arr,
-        volume->getDataWritable().data(),
+        volume.getDataWritable().data(),
         ttcams, camsids.size(), w, h, volStepXY,
         volDimX, volDimY, volDimZ,
         depths_dev,

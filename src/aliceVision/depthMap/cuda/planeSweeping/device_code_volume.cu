@@ -24,7 +24,7 @@ __global__ void volume_slice_kernel(
                                     float* depths_dev,
                                     int width, int height, int wsh,
                                     const float gammaC, const float gammaP, const float epipShift,
-                                    int* volume, int volume_s, int volume_p,
+                                    float* volume, int volume_s, int volume_p,
                                     int volStepXY,
                                     int volDimX, int volDimY )
 {
@@ -162,7 +162,7 @@ __global__ void volume_initVolume_kernel(T* volume, int volume_s, int volume_p, 
     }
 }
 
-__global__ void init_kernel_2Dint( int* buffer, int elements, int value )
+__global__ void init_kernel_2Dfloat( float* buffer, int elements, float value )
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     if( x >= elements ) return;
