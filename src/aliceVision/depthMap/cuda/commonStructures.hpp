@@ -354,6 +354,21 @@ public:
     copy(*this, rhs);
   }
 
+  CudaDeviceMemory(const Type* inbuf, const size_t size )
+  {
+    cudaError_t err;
+
+    sx = size;
+
+    err = cudaMalloc(&buffer, sx * sizeof(Type) );
+    if( err != cudaSuccess )
+    {
+        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+    }
+
+    copyFrom( inbuf, size );
+  }
+
   CudaDeviceMemory<Type> & operator=(const CudaDeviceMemory<Type> & rhs)
   {
     copy(*this, rhs);
@@ -374,6 +389,15 @@ public:
   const Type *getBuffer() const
   {
     return buffer;
+  }
+  void copyFrom( const Type* inbuf, const size_t num )
+  {
+    cudaMemcpyKind kind = cudaMemcpyHostToDevice;
+    cudaError_t err = cudaMemcpy( buffer, inbuf, num * sizeof(Type), kind);
+    if( err != cudaSuccess )
+    {
+      ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory: " << cudaGetErrorString(err) );
+    }
   }
 };
 
@@ -726,6 +750,11 @@ template<class Type> void copy(CudaDeviceMemory<Type>& _dst, const CudaHostMemor
   {
     ALICEVISION_LOG_ERROR( "Failed to copy from CudaHostMemoryHeap to CudaDeviceMemory: " << cudaGetErrorString(err) );
   }
+}
+
+template<class Type> void copy(CudaDeviceMemory<Type>& _dst, const Type* buffer, const size_t numelems )
+{
+    _dst.copyFrom( buffer, numelems );
 }
 
 template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>& _dst, const CudaArray<Type, Dim>& _src)

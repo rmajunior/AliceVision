@@ -1557,7 +1557,8 @@ bool PlaneSweepingCuda::refineRcTcDepthMap(bool useTcOrRcPixSize, int nStepsToRe
 float PlaneSweepingCuda::sweepPixelsToVolume( int nDepthsToSearch, StaticVector<float>& volume,
                                               int volDimX, int volDimY, int volDimZ,
                                               int volStepXY,
-                                              StaticVector<float>* depths, int rc, int wsh, float gammaC,
+                                              StaticVector<float>* depths,
+                                              int rc, int wsh, float gammaC,
                                               float gammaP,
                                               StaticVector<Voxel>* pixels, // use rcam image
                                               int scale, int step,
@@ -1608,6 +1609,7 @@ float PlaneSweepingCuda::sweepPixelsToVolume( int nDepthsToSearch, StaticVector<
         }
     }
 
+#if 0
     CudaHostMemoryHeap<float, 1> depths_hmh(CudaSize<1>(depths->size()));
 
     for(int x = 0; x < depths->size(); x++)
@@ -1616,6 +1618,10 @@ float PlaneSweepingCuda::sweepPixelsToVolume( int nDepthsToSearch, StaticVector<
     }
 
     CudaDeviceMemory<float> depths_dev( depths_hmh );
+#else
+    const float* depth_data = depths->getData().data();
+    CudaDeviceMemory<float> depths_dev( depth_data, depths->size() );
+#endif
 
     // sweep
     float volumeMBinGPUMem = ps_planeSweepingGPUPixelsVolume(
