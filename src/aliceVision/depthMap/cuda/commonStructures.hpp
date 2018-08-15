@@ -977,8 +977,9 @@ struct cameraStructBase
     float3 XVect;
     float3 YVect;
     float3 ZVect;
-
 };
+
+typedef cameraStructBase DeviceCameraStructBase;
 
 struct cameraStruct
 {

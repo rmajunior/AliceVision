@@ -985,7 +985,8 @@ void ps_SGMAggregateVolumeDir(
 };
 */
 
-static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
+static void ps_computeSimilarityVolume(
+                                CudaArray<uchar4, 2>** ps_texs_arr,
                                 CudaDeviceMemoryPitched<float, 3>& vol_dmp,
                                 const std::vector<cameraStruct*> cams,
                                 int width, int height,
