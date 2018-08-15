@@ -1101,7 +1101,8 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 }
 
 float ps_planeSweepingGPUPixelsVolume(CudaArray<uchar4, 2>** ps_texs_arr,
-                                      float* ovol_hmh, cameraStruct** cams, int ncams,
+                                      float* ovol_hmh,
+                                      cameraStruct** cams, int ncams,
                                       int width, int height,
                                       int volStepXY, int volDimX, int volDimY, int volDimZ,
                                       CudaDeviceMemory<float>& depths_dev,

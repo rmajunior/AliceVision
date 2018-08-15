@@ -18,6 +18,7 @@
 #include <aliceVision/mvsUtils/ImagesCache.hpp>
 #include <aliceVision/mvsUtils/PreMatchCams.hpp>
 #include <aliceVision/depthMap/DepthSimMap.hpp>
+#include <aliceVision/depthMap/cuda/commonStructures.hpp>
 
 namespace aliceVision {
 namespace depthMap {
@@ -54,7 +55,8 @@ public:
     mvsUtils::PreMatchCams* pc;
 
     int CUDADeviceNo;
-    void** ps_texs_arr;
+    // void** ps_texs_arr;
+    CudaArray<uchar4, 2>** ps_texs_arr;
 
     StaticVector<void*>* cams;
     StaticVector<int>* camsRcs;
