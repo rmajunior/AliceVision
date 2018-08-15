@@ -90,24 +90,12 @@ __device__ __constant__ unsigned char distFcnConst3[3] = {0, 94, 125};
 
 #define BLOCK_DIM 8
 
-__device__ __constant__ float sg_s_rP[12];  // 12*4 bytes
-__device__ __constant__ float sg_s_riP[9];  // 12*4 bytes
-__device__ __constant__ float sg_s_rR[9];   // 9*4 bytes
-__device__ __constant__ float sg_s_riR[9];  // 9*4 bytes
-__device__ __constant__ float sg_s_rK[9];   // 9*4 bytes
-__device__ __constant__ float sg_s_riK[9];  // 9*4 bytes
-__device__ __constant__ float3 sg_s_rC;     // 3*4 bytes
+__device__ __constant__ cameraStructBase sg_s_r;  // 12*4 bytes
 __device__ __constant__ float3 sg_s_rXVect; // 3*4 bytes
 __device__ __constant__ float3 sg_s_rYVect; // 3*4 bytes
 __device__ __constant__ float3 sg_s_rZVect; // 3*4 bytes
 
-__device__ __constant__ float sg_s_tP[12];  // 12*4 bytes
-__device__ __constant__ float sg_s_tiP[12]; // 12*4 bytes
-__device__ __constant__ float sg_s_tR[9];   // 9*4 bytes
-__device__ __constant__ float sg_s_tiR[9];  // 9*4 bytes
-__device__ __constant__ float sg_s_tK[9];   // 9*4 bytes
-__device__ __constant__ float sg_s_tiK[9];  // 9*4 bytes
-__device__ __constant__ float3 sg_s_tC;     // 3*4 bytes
+__device__ __constant__ cameraStructBase sg_s_t;  // 12*4 bytes
 __device__ __constant__ float3 sg_s_tXVect; // 3*4 bytes
 __device__ __constant__ float3 sg_s_tYVect; // 3*4 bytes
 __device__ __constant__ float3 sg_s_tZVect; // 3*4 bytes

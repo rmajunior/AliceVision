@@ -345,10 +345,10 @@ __global__ void volume_updateRcVolumeForTcDepthMap_kernel(unsigned int* volume, 
         int2 pixi = make_int2(vx * volStepXY, vy * volStepXY);
         // float2 pixf = make_float2(vx*volStepXY+0.5f,vy*volStepXY+0.5f);
 
-        // get3DPointForPixelAndFrontoParellePlaneRC uses __constant__ sg_s_r*
+        // get3DPointForPixelAndFrontoParellePlaneRC uses __constant__ sg_s_r.*
         float3 p = get3DPointForPixelAndFrontoParellePlaneRC(pixi, fpPlaneDepth);
 
-        float depthTcP = size(sg_s_tC - p);
+        float depthTcP = size(sg_s_t.C - p);
         float fpDepthTcP = frontoParellePlaneTCDepthFor3DPoint(p);
 
         float2 tpixf;
@@ -434,11 +434,11 @@ __global__ void volume_updateRcVolumeForTcDepthMap2_kernel(unsigned int* volume,
 
         int2 pixi = make_int2(vx * volStepXY, vy * volStepXY);
         float3 p = get3DPointForPixelAndFrontoParellePlaneRC(pixi, fpPlaneDepth);
-        float depthTcP = size(sg_s_tC - p);
+        float depthTcP = size(sg_s_t.C - p);
         float fpDepthTcP = frontoParellePlaneTCDepthFor3DPoint(p);
         float2 tpixf;
 
-        // getPixelFor3DPointTC uses __constant__ sg_s_t*
+        // getPixelFor3DPointTC uses __constant__ sg_s_t.*
         getPixelFor3DPointTC(tpixf, p);
         int2 tpix = make_int2((int)(tpixf.x + 0.5f), (int)(tpixf.y + 0.5f));
         int2 tpixMap =
@@ -548,12 +548,12 @@ __global__ void volume_update_nModalsMap_kernel(unsigned short* nModalsMap, int 
 
                 float3 p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth);
                 float2 tpixf;
-                // getPixelFor3DPointTC uses __constant__ sg_s_t*
+                // getPixelFor3DPointTC uses __constant__ sg_s_t.*
                 getPixelFor3DPointTC(tpixf, p);
                 int2 tpix = make_int2((int)(tpixf.x + 0.5f), (int)(tpixf.y + 0.5f));
 
                 float depthTc = tex2D(sliceTex, tpix.x / tcDepthMapStep, tpix.y / tcDepthMapStep);
-                float depthTcP = size(sg_s_tC - p);
+                float depthTcP = size(sg_s_t.C - p);
                 int distid = (int)(fabsf(depthTc - depthTcP) / step + 0.5f);
 
                 if((depthTc > 0.0f)
@@ -590,7 +590,7 @@ __global__ void volume_filterRcIdDepthMapByTcDepthMap_kernel(unsigned short* rcI
             int2 tpix = make_int2((int)(tpixf.x + 0.5f), (int)(tpixf.y + 0.5f));
 
             float depthTc = tex2D(sliceTex, tpix.x / tcDepthMapStep, tpix.y / tcDepthMapStep);
-            float depthTcP = size(sg_s_tC - p);
+            float depthTcP = size(sg_s_t.C - p);
             int distid = (int)(fabsf(depthTc - depthTcP) / step + 0.5f);
 
             * rcIdDepthMap_yx =

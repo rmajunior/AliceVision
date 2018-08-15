@@ -101,7 +101,7 @@ __global__ void compute_varLofLABtoW_kernel(uchar4* labMap, int labMap_p, int wi
 
 __device__ void move3DPointByRcPixSize(float3& p, float rcPixSize)
 {
-    float3 rpv = p - sg_s_rC;
+    float3 rpv = p - sg_s_r.C;
     normalize(rpv);
     p = p + rpv * rcPixSize;
 }
@@ -109,7 +109,7 @@ __device__ void move3DPointByRcPixSize(float3& p, float rcPixSize)
 __device__ void move3DPointByTcPixStep(float3& p, float tcPixStep)
 
 {
-    float3 rpv = sg_s_rC - p;
+    float3 rpv = sg_s_r.C - p;
     float3 prp = p;
     float3 prp1 = p + rpv / 2.0f;
 
@@ -156,10 +156,10 @@ __device__ void computePatch(patch& ptch, int depthid, int ndepths, int2& pix, i
     {
         float depth = tex2D(depthsTex, pixid, t);
         float2 rp = make_float2((float)pix.x, (float)pix.y);
-        float3 rpv = M3x3mulV2(sg_s_riP, rp);
+        float3 rpv = M3x3mulV2(sg_s_r.iP, rp);
         normalize(rpv);
 
-        float3 prp = sg_s_rC + rpv * depth;
+        float3 prp = sg_s_r.C + rpv * depth;
 
         pixSize = computePixSize(prp);
 
@@ -171,7 +171,7 @@ __device__ void computePatch(patch& ptch, int depthid, int ndepths, int2& pix, i
             p = prp;
 
             /*
-            float3 prp1 = sg_s_rC+rpv*depth*0.5f;
+            float3 prp1 = sg_s_r.C+rpv*depth*0.5f;
             float2 tpo; getPixelFor3DPointTC(tpo, prp);
             float2 tpv; getPixelFor3DPointTC(tpv, prp1);
             tpv = tpv-tpo; normalize(tpv);
@@ -182,7 +182,7 @@ __device__ void computePatch(patch& ptch, int depthid, int ndepths, int2& pix, i
         }
         else
         {
-            p = sg_s_rC + rpv * (depth + pixSize * jump);
+            p = sg_s_r.C + rpv * (depth + pixSize * jump);
         }
     }
     else
@@ -227,15 +227,15 @@ __device__ float3 computeDepthPoint_fine(float& pixSize, int depthid, int ndepth
 {
     float depth = tex2D(depthsTex, pixid, t);
     float2 rp = make_float2((float)pix.x, (float)pix.y);
-    float3 rpv = M3x3mulV2(sg_s_riP, rp);
+    float3 rpv = M3x3mulV2(sg_s_r.iP, rp);
     normalize(rpv);
 
-    float3 prp = sg_s_rC + rpv * depth;
+    float3 prp = sg_s_r.C + rpv * depth;
     pixSize = computePixSize(prp);
 
     float jump = (float)(depthid - ((ndepths - 1) / 2));
 
-    return sg_s_rC + rpv * (depth + pixSize * jump);
+    return sg_s_r.C + rpv * (depth + pixSize * jump);
 }
 
 __global__ void slice_fine_kernel(float* slice, int slice_p,
@@ -444,7 +444,7 @@ __global__ void computeNormalMap_kernel(
         }
 
         float3 pp = p1;
-        float3 nn = sg_s_rC - p1;
+        float3 nn = sg_s_r.C - p1;
         normalize(nn);
 
         float3 nc = nn;
@@ -529,7 +529,7 @@ __global__ void getBest_kernel(float* slice, int slice_p,
             computePatch(ptcho, minDepthId, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
 
             float3 p = ptcho.p;
-            float floatDepth = size(p - sg_s_rC);
+            float floatDepth = size(p - sg_s_r.C);
             float outDepth = floatDepth;
             float outSim = minSim;
             // float outDepth = -1.0f;
@@ -542,14 +542,14 @@ __global__ void getBest_kernel(float* slice, int slice_p,
 
                 p = ptcho.p;
 
-                depths.x = size(p - sg_s_rC);
+                depths.x = size(p - sg_s_r.C);
                 depths.y = floatDepth;
 
                 computePatch(ptcho, minDepthId + 1, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
 
                 p = ptcho.p;
 
-                depths.z = size(p - sg_s_rC);
+                depths.z = size(p - sg_s_r.C);
 
                 float3 sims;
                 sims.x = tex2D(sliceTex, minDepthId - 1, pixid);
@@ -600,7 +600,7 @@ __global__ void getBest_fine_kernel(float* slice, int slice_p,
         int2 pix = tex2D(pixsTex, pixid, t);
         float pixSize;
         float3 p = computeDepthPoint_fine(pixSize, minDepthId, ndepths, pix, pixid, t);
-        float floatDepth = size(p - sg_s_rC);
+        float floatDepth = size(p - sg_s_r.C);
         float outDepth = floatDepth;
         float outSim = minSim;
         // float outDepth = -1.0f;
@@ -629,9 +629,9 @@ __global__ void getBest_fine_kernel(float* slice, int slice_p,
             {
                 float dispStep = -((simP1 - simM1) / (2.0f * (simP1 + simM1 - 2.0f * sim1)));
                 p = computeDepthPoint_fine(pixSize, minDepthId - 1, ndepths, pix, pixid, t);
-                float floatDepthM1 = size(p - sg_s_rC);
+                float floatDepthM1 = size(p - sg_s_r.C);
                 p = computeDepthPoint_fine(pixSize, minDepthId + 1, ndepths, pix, pixid, t);
-                float floatDepthP1 = size(p - sg_s_rC);
+                float floatDepthP1 = size(p - sg_s_r.C);
                 //-1 : floatDepthM1
                 // 0 : floatDepth
                 //+1 : floatDepthP1
@@ -731,7 +731,7 @@ __global__ void reprojTarTexLAB_kernel(uchar4* texs, int texs_p, int width, int 
     if((x < width) && (y < height))
     {
         float3 p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth);
-        float2 tpc = project3DPoint(sg_s_tP, p);
+        float2 tpc = project3DPoint(sg_s_t.P, p);
         uchar4* tex = get2DBufferAt(texs, texs_p, x, y);
         if(((tpc.x + 0.5f) > 0.0f) && ((tpc.y + 0.5f) > 0.0f) &&
            ((tpc.x + 0.5f) < (float)width - 1.0f) && ((tpc.y + 0.5f) < (float)height - 1.0f))
@@ -760,7 +760,7 @@ __global__ void reprojTarTexRgb_kernel(uchar4* texs, int texs_p, int width, int 
     if((x < width) && (y < height))
     {
         float3 p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth);
-        float2 tpc = project3DPoint(sg_s_tP, p);
+        float2 tpc = project3DPoint(sg_s_t.P, p);
         uchar4* tex = get2DBufferAt(texs, texs_p, x, y);
         if(((tpc.x + 0.5f) > 0.0f) && ((tpc.y + 0.5f) > 0.0f) &&
            ((tpc.x + 0.5f) < (float)width - 1.0f) && ((tpc.y + 0.5f) < (float)height - 1.0f))
@@ -1062,7 +1062,7 @@ __global__ void updateBestDepth_kernel(
         {
             int2 pix = make_int2(x * step, y * step);
             float3 p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth);
-            float depth = size(sg_s_rC - p);
+            float depth = size(sg_s_r.C - p);
 
             *get2DBufferAt(osim, osim_p, x, y) = is;
             *get2DBufferAt(odpt, odpt_p, x, y) = depth;
@@ -1182,7 +1182,7 @@ __global__ void ptsStatForRcDepthMap_kernel(float2* out, int out_p,
     if(ptid < npts)
     {
         float3 p = pts[ptid];
-        float depthP = size(sg_s_rC - p);
+        float depthP = size(sg_s_r.C - p);
         float2 pixf;
 
         getPixelFor3DPointRC(pixf, p);
