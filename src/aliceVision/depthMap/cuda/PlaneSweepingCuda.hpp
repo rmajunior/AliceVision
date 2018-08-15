@@ -58,9 +58,9 @@ public:
     // void** ps_texs_arr;
     CudaArray<uchar4, 2>** ps_texs_arr;
 
-    StaticVector<void*>* cams;
-    StaticVector<int>* camsRcs;
-    StaticVector<long>* camsTimes;
+    StaticVector<cameraStruct> cams;
+    StaticVector<int>          camsRcs;
+    StaticVector<long>         camsTimes;
 
     bool verbose;
     bool doVizualizePartialDepthMaps;
@@ -80,7 +80,7 @@ public:
                         int _scales);
     ~PlaneSweepingCuda(void);
 
-    int addCam(int rc, float** H, int scale);
+    int addCam(int rc, int scale);
 
     void getMinMaxdepths(int rc, StaticVector<int>* tcams, float& minDepth, float& midDepth, float& maxDepth);
     void getAverageMinMaxdepths(float& avMinDist, float& avMaxDist);
@@ -117,7 +117,8 @@ public:
                               int volDimX, int volDimY, int volDimZ,
                               int volStepXY,
                               StaticVector<float>* depths, int rc, int wsh, float gammaC, float gammaP,
-                              StaticVector<Voxel>* pixels, int scale, int step, StaticVector<int>* tcams,
+                              StaticVector<Voxel>* pixels, int scale, int step,
+                              const StaticVector<int>& tcams,
                               float epipShift);
     bool SGMoptimizeSimVolume(int rc, StaticVector<unsigned char>* volume,
                               int volDimX, int volDimY, int volDimZ,

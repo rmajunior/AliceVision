@@ -971,7 +971,6 @@ struct cameraStruct
     CudaHostMemoryHeap<uchar4, 2>* tex_rgba_hmh;
     int camId;
     int rc;
-    float* H;
     int scale;
     int blurid;
 };

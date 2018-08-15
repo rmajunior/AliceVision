@@ -14,7 +14,8 @@ namespace depthMap {
 extern float3 ps_getDeviceMemoryInfo();
 
 float ps_planeSweepingGPUPixelsVolume(CudaArray<uchar4, 2>** ps_texs_arr,
-                                      float* ovol_hmh, cameraStruct** cams, int ncams,
+                                      float* ovol_hmh,
+                                      const std::vector<cameraStruct*> cams,
                                       int width, int height,
                                       int volStepXY, int volDimX, int volDimY, int volDimZ,
                                       CudaDeviceMemory<float>& depths_dev,
@@ -27,7 +28,8 @@ float ps_planeSweepingGPUPixelsVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 
 extern float3 ps_getDeviceMemoryInfo();
 
-extern void ps_SGMoptimizeSimVolume(CudaArray<uchar4, 2>** ps_texs_arr, cameraStruct* rccam,
+extern void ps_SGMoptimizeSimVolume(CudaArray<uchar4, 2>** ps_texs_arr,
+                                    const cameraStruct& rccam,
                                     unsigned char* iovol_hmh,
                                     int volDimX, int volDimY, int volDimZ,
                                     int volStepXY,
@@ -39,7 +41,8 @@ extern int ps_listCUDADevices(bool verbose);
 extern void ps_deviceAllocate(CudaArray<uchar4, 2>*** ps_texs_arr, int ncams, int width, int height, int scales,
                               int deviceId);
 
-extern void ps_deviceUpdateCam(CudaArray<uchar4, 2>** ps_texs_arr, cameraStruct* cam, int camId, int CUDAdeviceNo,
+extern void ps_deviceUpdateCam(CudaArray<uchar4, 2>** ps_texs_arr,
+                               const cameraStruct& cam, int camId, int CUDAdeviceNo,
                                int ncamsAllocated, int scales, int w, int h, int varianceWsh);
 
 extern void ps_deviceDeallocate(CudaArray<uchar4, 2>*** ps_texs_arr, int CUDAdeviceNo, int ncams, int scales);
@@ -66,7 +69,8 @@ extern void ps_alignSourceDepthMapToTarget(CudaArray<uchar4, 2>** ps_texs_arr,
 extern void ps_refineDepthMapReproject(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<uchar4, 2>* otimg_hmh,
                                        CudaHostMemoryHeap<float, 2>* osim_hmh,
                                        CudaHostMemoryHeap<float, 2>* odpt_hmh,
-                                       CudaHostMemoryHeap<float, 2>& depthMap_hmh, cameraStruct** cams, int ncams,
+                                       CudaHostMemoryHeap<float, 2>& depthMap_hmh,
+                                       const std::vector<cameraStruct*> cams,
                                        int width, int height, int scale, int CUDAdeviceNo, int ncamsAllocated,
                                        int scales, bool verbose, int wsh, float gammaC, float gammaP, float simThr,
                                        int niters, bool moveByTcOrRc);
@@ -78,7 +82,7 @@ void ps_computeSimMapForRcTcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHos
 
 extern void ps_refineRcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, float* osimMap_hmh,
                                 float* rcDepthMap_hmh, int ntcsteps,
-                                cameraStruct** cams, int ncams,
+                                const std::vector<cameraStruct*> cams,
                                 int width, int height, int imWidth, int imHeight, int scale, int CUDAdeviceNo,
                                 int ncamsAllocated, int scales, bool verbose, int wsh, float gammaC, float gammaP,
                                 float epipShift, bool moveByTcOrRc, int xFrom);

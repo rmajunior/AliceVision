@@ -101,7 +101,7 @@ __host__ void configure_init_kernel_2Dfloat( )
     }
 }
 
-__host__ float3 ps_M3x3mulV3(float* M3x3, const float3& V)
+__host__ static float3 ps_M3x3mulV3(const float* M3x3, const float3& V)
 {
     return make_float3(M3x3[0] * V.x + M3x3[3] * V.y + M3x3[6] * V.z, M3x3[1] * V.x + M3x3[4] * V.y + M3x3[7] * V.z,
                        M3x3[2] * V.x + M3x3[5] * V.y + M3x3[8] * V.z);
@@ -146,8 +146,11 @@ float3 ps_getDeviceMemoryInfo()
     return make_float3(avail, total, used);
 }
 
-__host__ void ps_init_reference_camera_matrices(float* _P, float* _iP, float* _R, float* _iR, float* _K, float* _iK,
-                                                float* _C)
+__host__ static void ps_init_reference_camera_matrices(
+    const float* _P, const float* _iP,
+    const float* _R, const float* _iR,
+    const float* _K, const float* _iK,
+    const float* _C)
 {
     cudaMemcpyToSymbol(sg_s_rP, _P, sizeof(float) * 3 * 4);
     cudaMemcpyToSymbol(sg_s_riP, _iP, sizeof(float) * 3 * 3);
@@ -183,8 +186,11 @@ __host__ void ps_init_reference_camera_matrices(float* _P, float* _iP, float* _R
     cudaMemcpyToSymbol(sg_s_rZVect, &_rZVect, sizeof(float) * 3);
 }
 
-__host__ void ps_init_target_camera_matrices(float* _P, float* _iP, float* _R, float* _iR, float* _K, float* _iK,
-                                             float* _C)
+__host__ static void ps_init_target_camera_matrices(
+        const float* _P, const float* _iP,
+        const float* _R, const float* _iR,
+        const float* _K, const float* _iK,
+        const float* _C)
 {
     cudaMemcpyToSymbol(sg_s_tP, _P, sizeof(float) * 3 * 4);
     cudaMemcpyToSymbol(sg_s_tiP, _iP, sizeof(float) * 3 * 3);
@@ -392,7 +398,8 @@ void testCUDAdeviceNo(int CUDAdeviceNo)
     };
 }
 
-void ps_deviceUpdateCam(CudaArray<uchar4, 2>** ps_texs_arr, cameraStruct* cam, int camId, int CUDAdeviceNo,
+void ps_deviceUpdateCam(CudaArray<uchar4, 2>** ps_texs_arr,
+                        const cameraStruct& cam, int camId, int CUDAdeviceNo,
                         int ncamsAllocated, int scales, int w, int h, int varianceWsh)
 {
     testCUDAdeviceNo(CUDAdeviceNo);
@@ -400,7 +407,7 @@ void ps_deviceUpdateCam(CudaArray<uchar4, 2>** ps_texs_arr, cameraStruct* cam, i
     // compute gradient
     {
         CudaDeviceMemoryPitched<uchar4, 2> tex_lab_dmp(CudaSize<2>(w, h));
-        copy(tex_lab_dmp, (*cam->tex_rgba_hmh));
+        copy(tex_lab_dmp, (*cam.tex_rgba_hmh));
 
         int block_size = 8;
         dim3 block(block_size, block_size, 1);
@@ -842,7 +849,7 @@ void ps_updateAggrVolume(CudaDeviceMemoryPitched<unsigned char, 3>& volAgr_dmp,
 * @param[inout] iovol_hmh input similarity volume (after Z reduction)
 */
 void ps_SGMoptimizeSimVolume(CudaArray<uchar4, 2>** ps_texs_arr,
-                             cameraStruct* rccam,
+                             const cameraStruct& rccam,
                              unsigned char* iovol_hmh,
                              int volDimX, int volDimY, int volDimZ,
                              int volStepXY,
@@ -853,10 +860,10 @@ void ps_SGMoptimizeSimVolume(CudaArray<uchar4, 2>** ps_texs_arr,
     if(verbose)
         printf("ps_SGMoptimizeSimVolume\n");
 
-    ps_init_reference_camera_matrices(rccam->P, rccam->iP, rccam->R, rccam->iR, rccam->K, rccam->iK, rccam->C);
+    ps_init_reference_camera_matrices(rccam.P, rccam.iP, rccam.R, rccam.iR, rccam.K, rccam.iK, rccam.C);
 
     // bind 'r4tex' from the image in Lab colorspace at the scale used
-    cudaBindTextureToArray(r4tex, ps_texs_arr[rccam->camId * scales + scale]->getArray(),
+    cudaBindTextureToArray(r4tex, ps_texs_arr[rccam.camId * scales + scale]->getArray(),
                            cudaCreateChannelDesc<uchar4>());
 
     //CudaDeviceMemoryPitched<unsigned char, 3> volSim_dmp(*iovol_hmh);
@@ -1007,7 +1014,8 @@ void ps_SGMAggregateVolumeDir(
 */
 
 static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
-                                CudaDeviceMemoryPitched<float, 3>& vol_dmp, cameraStruct** cams, int ncams,
+                                CudaDeviceMemoryPitched<float, 3>& vol_dmp,
+                                const std::vector<cameraStruct*> cams,
                                 int width, int height,
                                 int volStepXY,
                                 int volDimX, int volDimY, int volDimZ,
@@ -1102,7 +1110,7 @@ static void ps_computeSimilarityVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 
 float ps_planeSweepingGPUPixelsVolume(CudaArray<uchar4, 2>** ps_texs_arr,
                                       float* ovol_hmh,
-                                      cameraStruct** cams, int ncams,
+                                      const std::vector<cameraStruct*> cams,
                                       int width, int height,
                                       int volStepXY, int volDimX, int volDimY, int volDimZ,
                                       CudaDeviceMemory<float>& depths_dev,
@@ -1124,7 +1132,7 @@ float ps_planeSweepingGPUPixelsVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 
     //--------------------------------------------------------------------------------------------------
     // compute similarity volume
-    ps_computeSimilarityVolume(ps_texs_arr, volSim_dmp, cams, ncams,
+    ps_computeSimilarityVolume(ps_texs_arr, volSim_dmp, cams,
                                width, height,
                                volStepXY,
                                volDimX, volDimY, volDimZ,
@@ -2497,8 +2505,10 @@ void ps_growDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<ucha
 
 void ps_refineDepthMapReproject(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<uchar4, 2>* otimg_hmh,
                                 CudaHostMemoryHeap<float, 2>* osim_hmh, CudaHostMemoryHeap<float, 2>* odpt_hmh,
-                                CudaHostMemoryHeap<float, 2>& depthMap_hmh, cameraStruct** cams, int ncams, int width,
-                                int height, int scale, int CUDAdeviceNo, int ncamsAllocated, int scales, bool verbose,
+                                CudaHostMemoryHeap<float, 2>& depthMap_hmh,
+                                const std::vector<cameraStruct*> cams,
+                                int width, int height,
+                                int scale, int CUDAdeviceNo, int ncamsAllocated, int scales, bool verbose,
                                 int wsh, float gammaC, float gammaP, float simThr, int niters, bool moveByTcOrRc)
 {
     testCUDAdeviceNo(CUDAdeviceNo);
@@ -2786,8 +2796,9 @@ void ps_computeSimMapForRcTcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHos
 
 void ps_refineRcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, float* osimMap_hmh,
                          float* rcDepthMap_hmh, int ntcsteps,
-                         cameraStruct** cams, int ncams, int width,
-                         int height, int imWidth, int imHeight, int scale, int CUDAdeviceNo, int ncamsAllocated,
+                         const std::vector<cameraStruct*> cams,
+                         int width, int height,
+                         int imWidth, int imHeight, int scale, int CUDAdeviceNo, int ncamsAllocated,
                          int scales, bool verbose, int wsh, float gammaC, float gammaP, float epipShift,
                          bool moveByTcOrRc, int xFrom)
 {
