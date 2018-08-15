@@ -36,6 +36,14 @@ public:
     StaticVector()
     {}
 
+    StaticVector( int n )
+        : _data( n )
+    {}
+
+    StaticVector( int n, const T& value )
+        : _data( n, value )
+    {}
+
     const T& operator[](int index) const
     {
         return _data[index];

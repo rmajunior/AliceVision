@@ -71,13 +71,9 @@ StaticVector<unsigned char>* SemiGlobalMatchingRcTc::computeDepthSimMapVolume(fl
     int volDimY = h;
     int volDimZ = rcTcDepths->size();
 
-    StaticVector<unsigned char>* volume = new StaticVector<unsigned char>();
-    volume->reserve(volDimX * volDimY * volDimZ);
-    volume->resize_with(volDimX * volDimY * volDimZ, 255);
+    StaticVector<unsigned char>* volume = new StaticVector<unsigned char>( volDimX * volDimY * volDimZ, 255 );
 
-    StaticVector<float> volume_tmp;
-    volume_tmp.reserve(volDimX * volDimY * volDimZ);
-    volume_tmp.resize_with(volDimX * volDimY * volDimZ, 255.0f);
+    StaticVector<float> volume_tmp( volDimX * volDimY * volDimZ, 255.0f );
 
     StaticVector<int>* tcams = new StaticVector<int>();
     tcams->reserve(1);
