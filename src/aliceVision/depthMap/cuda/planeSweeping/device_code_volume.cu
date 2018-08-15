@@ -57,9 +57,9 @@ __global__ void volume_slice_kernel(
     const float fmaxVal = 1.0f;
     fsim = (fsim - fminVal) / (fmaxVal - fminVal);
     fsim = fminf(1.0f, fmaxf(0.0f, fsim));
-    int sim = (unsigned char)(fsim * 255.0f); // upcast to int due to atomicMin
+    // int sim = (unsigned char)(fsim * 255.0f); // upcast to int due to atomicMin
 
-    *get3DBufferAt(volume, volume_s, volume_p, vx, vy, vz) = sim;
+    *get3DBufferAt(volume, volume_s, volume_p, vx, vy, vz) = fsim;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

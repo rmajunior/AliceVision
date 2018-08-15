@@ -95,7 +95,6 @@ StaticVector<unsigned char>* SemiGlobalMatchingRcTc::computeDepthSimMapVolume(fl
 
     for( int i=0; i<volDimX * volDimY * volDimZ; i++ )
     {
-#error must not mult with 255 in CUDA kernel !!!! remove that now
         (*volume)[i] = (unsigned char)( 255.0f * std::max(std::min(volume_tmp[i],1.0f),0.0f) );
     }
 
