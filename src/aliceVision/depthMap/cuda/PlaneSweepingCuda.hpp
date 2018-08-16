@@ -56,7 +56,7 @@ public:
 
     int CUDADeviceNo;
     // void** ps_texs_arr;
-    CudaArray<uchar4, 2>** ps_texs_arr;
+    Pyramid ps_texs_arr;
 
     StaticVector<cameraStruct> cams;
     StaticVector<int>          camsRcs;

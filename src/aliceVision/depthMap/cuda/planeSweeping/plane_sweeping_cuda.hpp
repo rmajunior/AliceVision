@@ -13,7 +13,7 @@ namespace depthMap {
 
 extern float3 ps_getDeviceMemoryInfo();
 
-float ps_planeSweepingGPUPixelsVolume(CudaArray<uchar4, 2>** ps_texs_arr,
+float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
                                       float* ovol_hmh,
                                       const std::vector<cameraStruct*> cams,
                                       int width, int height,
@@ -28,7 +28,7 @@ float ps_planeSweepingGPUPixelsVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 
 extern float3 ps_getDeviceMemoryInfo();
 
-extern void ps_SGMoptimizeSimVolume(CudaArray<uchar4, 2>** ps_texs_arr,
+extern void ps_SGMoptimizeSimVolume(Pyramid& ps_texs_arr,
                                     const cameraStruct& rccam,
                                     unsigned char* iovol_hmh,
                                     int volDimX, int volDimY, int volDimZ,
@@ -38,14 +38,14 @@ extern void ps_SGMoptimizeSimVolume(CudaArray<uchar4, 2>** ps_texs_arr,
 
 extern int ps_listCUDADevices(bool verbose);
 
-extern void ps_deviceAllocate(CudaArray<uchar4, 2>*** ps_texs_arr, int ncams, int width, int height, int scales,
+extern void ps_deviceAllocate(Pyramid& ps_texs_arr, int ncams, int width, int height, int scales,
                               int deviceId);
 
-extern void ps_deviceUpdateCam(CudaArray<uchar4, 2>** ps_texs_arr,
+extern void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
                                const cameraStruct& cam, int camId, int CUDAdeviceNo,
                                int ncamsAllocated, int scales, int w, int h, int varianceWsh);
 
-extern void ps_deviceDeallocate(CudaArray<uchar4, 2>*** ps_texs_arr, int CUDAdeviceNo, int ncams, int scales);
+extern void ps_deviceDeallocate(Pyramid& ps_texs_arr, int CUDAdeviceNo, int ncams, int scales);
 
 // extern void ps_smoothDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<float, 2>* depthMap_hmh,
 //                               cameraStruct** cams, int width, int height, int scale, int CUDAdeviceNo,
@@ -80,7 +80,7 @@ extern void ps_deviceDeallocate(CudaArray<uchar4, 2>*** ps_texs_arr, int CUDAdev
 //                                      int width, int height, int scale, int CUDAdeviceNo, int ncamsAllocated, int scales,
 //                                      bool verbose, int wsh, float gammaC, float gammaP, float epipShift);
 
-extern void ps_refineRcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, float* osimMap_hmh,
+extern void ps_refineRcDepthMap(Pyramid& ps_texs_arr, float* osimMap_hmh,
                                 float* rcDepthMap_hmh, int ntcsteps,
                                 const std::vector<cameraStruct*> cams,
                                 int width, int height, int imWidth, int imHeight, int scale, int CUDAdeviceNo,
@@ -91,7 +91,7 @@ extern void ps_fuseDepthSimMapsGaussianKernelVoting(CudaHostMemoryHeap<float2, 2
                                                     int ndepthSimMaps, int nSamplesHalf, int nDepthsToRefine,
                                                     float sigma, int width, int height, bool verbose);
 
-extern void ps_optimizeDepthSimMapGradientDescent(CudaArray<uchar4, 2>** ps_texs_arr,
+extern void ps_optimizeDepthSimMapGradientDescent(Pyramid& ps_texs_arr,
                                                   CudaHostMemoryHeap<float2, 2>* odepthSimMap_hmh,
                                                   CudaHostMemoryHeap<float2, 2>** dataMaps_hmh, int ndataMaps,
                                                   int nSamplesHalf, int nDepthsToRefine, int nIters, float sigma,
@@ -99,7 +99,7 @@ extern void ps_optimizeDepthSimMapGradientDescent(CudaArray<uchar4, 2>** ps_texs
                                                   int CUDAdeviceNo, int ncamsAllocated, int scales, bool verbose,
                                                   int yFrom);
 
-extern void ps_getSilhoueteMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<bool, 2>* omap_hmh, int width,
+extern void ps_getSilhoueteMap(Pyramid& ps_texs_arr, CudaHostMemoryHeap<bool, 2>* omap_hmh, int width,
                                int height, int scale, int CUDAdeviceNo, int ncamsAllocated, int scales, int step,
                                int camId, uchar4 maskColorRgb, bool verbose);
 

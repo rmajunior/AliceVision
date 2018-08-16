@@ -184,7 +184,7 @@ PlaneSweepingCuda::PlaneSweepingCuda(int _CUDADeviceNo, mvsUtils::ImagesCache* _
                          << "\t- varianceWSH: " << varianceWSH);
 
     // allocate global on the device
-    ps_deviceAllocate(&ps_texs_arr, nImgsInGPUAtTime, maxImageWidth, maxImageHeight, scales, CUDADeviceNo);
+    ps_deviceAllocate(ps_texs_arr, nImgsInGPUAtTime, maxImageWidth, maxImageHeight, scales, CUDADeviceNo);
 
     cams     .resize(nImgsInGPUAtTime);
     camsRcs  .resize(nImgsInGPUAtTime);
@@ -253,7 +253,7 @@ PlaneSweepingCuda::~PlaneSweepingCuda(void)
 {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // deallocate global on the device
-    ps_deviceDeallocate(&ps_texs_arr, CUDADeviceNo, nImgsInGPUAtTime, scales);
+    ps_deviceDeallocate(ps_texs_arr, CUDADeviceNo, nImgsInGPUAtTime, scales);
 
     for(int c = 0; c < cams.size(); c++)
     {

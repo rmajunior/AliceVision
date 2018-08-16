@@ -998,6 +998,8 @@ struct ps_parameters
     int rotY;
 };
 
+typedef std::vector<std::vector<CudaArray<uchar4, 2>*> > Pyramid;
+
 #define MAX_PTS 500           // 500
 #define MAX_PATCH_PIXELS 2500 // 50*50
 
