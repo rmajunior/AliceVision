@@ -2035,6 +2035,7 @@ void ps_getTexture(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<uchar4
     printf("gpu elapsed time: %f ms \n", toc(tall));
 };
 
+#if 0
 void ps_smoothDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<float, 2>* depthMap_hmh,
                        cameraStruct** cams, int width, int height, int scale, int CUDAdeviceNo, int ncamsAllocated,
                        int scales, int wsh, bool verbose, float gammaC, float gammaP)
@@ -2076,7 +2077,9 @@ void ps_smoothDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<fl
     if(verbose)
         printf("gpu elapsed time: %f ms \n", toc(tall));
 };
+#endif
 
+#if 0
 void ps_filterDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<float, 2>* depthMap_hmh,
                        cameraStruct** cams, int width, int height, int scale, int CUDAdeviceNo, int ncamsAllocated,
                        int scales, int wsh, bool verbose, float gammaC, float minCostThr)
@@ -2118,7 +2121,9 @@ void ps_filterDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<fl
     if(verbose)
         printf("gpu elapsed time: %f ms \n", toc(tall));
 };
+#endif
 
+#if 0
 void ps_computeNormalMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<float3, 2>* normalMap_hmh,
                          CudaHostMemoryHeap<float, 2>* depthMap_hmh, cameraStruct** cams, int width, int height,
                          int scale, int CUDAdeviceNo, int ncamsAllocated, int scales, int wsh, bool verbose,
@@ -2163,7 +2168,9 @@ void ps_computeNormalMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<
     cudaUnbindTexture(r4tex);
     cudaUnbindTexture(depthsTex);
 };
+#endif
 
+#if 0
 void ps_alignSourceDepthMapToTarget(CudaArray<uchar4, 2>** ps_texs_arr,
                                     CudaHostMemoryHeap<float, 2>* sourceDepthMap_hmh,
                                     CudaHostMemoryHeap<float, 2>* targetDepthMap_hmh, cameraStruct** cams, int width,
@@ -2210,7 +2217,8 @@ void ps_alignSourceDepthMapToTarget(CudaArray<uchar4, 2>** ps_texs_arr,
 
     if(verbose)
         printf("gpu elapsed time: %f ms \n", toc(tall));
-};
+}
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2456,6 +2464,7 @@ void ps_growDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<ucha
     cudaUnbindTexture(t4tex);
 };
 
+#if 0
 void ps_refineDepthMapReproject(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<uchar4, 2>* otimg_hmh,
                                 CudaHostMemoryHeap<float, 2>* osim_hmh, CudaHostMemoryHeap<float, 2>* odpt_hmh,
                                 CudaHostMemoryHeap<float, 2>& depthMap_hmh,
@@ -2539,6 +2548,7 @@ void ps_refineDepthMapReproject(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemo
     cudaUnbindTexture(r4tex);
     cudaUnbindTexture(t4tex);
 };
+#endif
 
 #if 0
 void ps_computeRcTcPhotoErrMapReproject(
@@ -2703,6 +2713,7 @@ void ps_computeSimMapsForNShiftsOfRcTcDepthMap(CudaArray<uchar4, 2>** ps_texs_ar
         printf("gpu elapsed time: %f ms \n", toc(tall));
 };
 
+#if 0
 void ps_computeSimMapForRcTcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHostMemoryHeap<float, 2>* osimMap_hmh,
                                      CudaHostMemoryHeap<float, 2>& rcTcDepthMap_hmh, cameraStruct** cams, int ncams,
                                      int width, int height, int scale, int CUDAdeviceNo, int ncamsAllocated, int scales,
@@ -2740,6 +2751,7 @@ void ps_computeSimMapForRcTcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, CudaHos
     if(verbose)
         printf("gpu elapsed time: %f ms \n", toc(tall));
 };
+#endif
 
 void ps_refineRcDepthMap(CudaArray<uchar4, 2>** ps_texs_arr, float* osimMap_hmh,
                          float* rcDepthMap_hmh, int ntcsteps,

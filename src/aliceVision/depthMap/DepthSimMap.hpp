@@ -79,7 +79,7 @@ public:
     StaticVector<float>* getSimMapStep1XPart(int xFrom, int partW);
 
     void saveToImage(std::string pngFileName, float simThr);
-    void save(int rc, StaticVector<int>* tcams);
+    void save(int rc, const StaticVector<int>& tcams);
     void load(int rc, int fromScale);
     void saveRefine(int rc, std::string depthMapFileName, std::string simMapFileName);
 

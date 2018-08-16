@@ -34,8 +34,7 @@ RefineRc::RefineRc(int _rc, int _scale, int _step, SemiGlobalMatchingParams* _sp
     _gammaP = (float)sp->mp->_ini.get<double>("refineRc.gammaP", 8.0);
     
     int nnearestcams = sp->mp->_ini.get<int>("refineRc.maxTCams", 6);
-    tcams = new StaticVector<int>();
-    *tcams = sp->pc->findNearestCamsFromSeeds(rc, nnearestcams);
+    tcams = sp->pc->findNearestCamsFromSeeds(rc, nnearestcams);
 }
 
 RefineRc::~RefineRc()
@@ -90,7 +89,7 @@ DepthSimMap* RefineRc::getDepthPixSizeMapFromSGM()
                             (*depthSimMapScale1Step1->dsm)[y * w11 + x].depth;
             if(_userTcOrPixSize)
             {
-                (*depthSimMapScale1Step1->dsm)[y * w11 + x].sim = sp->mp->getCamsMinPixelSize(p, *tcams);
+                (*depthSimMapScale1Step1->dsm)[y * w11 + x].sim = sp->mp->getCamsMinPixelSize(p, tcams);
             }
             else
             {
@@ -108,12 +107,12 @@ DepthSimMap* RefineRc::refineAndFuseDepthSimMapCUDA(DepthSimMap* depthPixSizeMap
     int h11 = sp->mp->getHeight(rc);
 
     StaticVector<DepthSimMap*>* dataMaps = new StaticVector<DepthSimMap*>();
-    dataMaps->reserve(tcams->size() + 1);
+    dataMaps->reserve(tcams.size() + 1);
     dataMaps->push_back(depthPixSizeMapVis); //!!DO NOT ERASE!!!
 
-    for(int c = 0; c < tcams->size(); c++)
+    for(int c = 0; c < tcams.size(); c++)
     {
-        int tc = (*tcams)[c];
+        int tc = tcams[c];
 
         DepthSimMap* depthSimMapC = new DepthSimMap(rc, sp->mp, 1, 1);
         StaticVector<float>* depthMap = depthPixSizeMapVis->getDepthMap();
@@ -183,7 +182,7 @@ DepthSimMap* RefineRc::refineAndFuseDepthSimMapCUDA(DepthSimMap* depthPixSizeMap
     }
 
     (*dataMaps)[0] = nullptr; // it is input dsmap we dont want to delete it
-    for(int c = 0; c < tcams->size(); c++)
+    for(int c = 0; c < tcams.size(); c++)
     {
         delete(*dataMaps)[c + 1];
     }
@@ -244,10 +243,10 @@ bool RefineRc::refinercCUDA(bool checkIfExists)
         ALICEVISION_LOG_DEBUG("refinercCUDA: processing " << (rc + 1) << " of " << sp->mp->ncams << ".");
 
     // generate default depthSimMap if rc has no tcam
-    if(tcams == nullptr || depths == nullptr)
+    if(tcams.size() == 0 || depths == nullptr)
     {
         DepthSimMap depthSimMapOpt(rc, sp->mp, 1, 1);
-        depthSimMapOpt.save(rc, nullptr);
+        depthSimMapOpt.save(rc, StaticVector<int>() );
         return true;
     }
 

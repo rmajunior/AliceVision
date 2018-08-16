@@ -20,13 +20,15 @@ public:
     ~SemiGlobalMatchingRc(void);
 
     bool sgmrc(bool checkIfExists = true);
-    StaticVector<int>* tcams;
+
+protected:
+    StaticVector<int> tcams;
 
 protected:
 
     float getMinTcStepAtDepth(float depth, float minDepth, float maxDepth,
                               StaticVector<StaticVector<float>*>* alldepths);
-    StaticVector<float>* getTcSeedsRcPlaneDists(int rc, StaticVector<int>* tcams);
+    StaticVector<float>* getTcSeedsRcPlaneDists(int rc, const StaticVector<int>& tcams);
     bool selectBestDepthsRange(int nDepthsThr, StaticVector<float>* rcSeedsDistsAsc);
     bool selectBestDepthsRange(int nDepthsThr, StaticVector<StaticVector<float>*>* alldepths);
     StaticVector<StaticVector<float>*>* computeAllDepthsAndResetTCams();

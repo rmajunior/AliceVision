@@ -67,6 +67,7 @@ void RcTc::refineRcTcDepthSimMap(bool useTcOrRcPixSize, DepthSimMap* depthSimMap
     }
 }
 
+#if 0
 void RcTc::smoothDepthMap(DepthSimMap* depthSimMap, int rc, int wsh, float gammaC, float gammaP)
 {
     long t1 = clock();
@@ -86,7 +87,9 @@ void RcTc::smoothDepthMap(DepthSimMap* depthSimMap, int rc, int wsh, float gamma
 
     delete depthMap;
 }
+#endif
 
+#if 0
 void RcTc::filterDepthMap(DepthSimMap* depthSimMap, int rc, int wsh, float gammaC)
 {
     long t1 = clock();
@@ -108,6 +111,7 @@ void RcTc::filterDepthMap(DepthSimMap* depthSimMap, int rc, int wsh, float gamma
 
     delete depthMap;
 }
+#endif
 
 } // namespace depthMap
 } // namespace aliceVision

@@ -38,8 +38,7 @@ SemiGlobalMatchingRc::SemiGlobalMatchingRc(bool doComputeDepthsAndResetTCams, in
     h = sp->mp->getHeight(rc) / (scale * step);
 
     int nnearestcams = sp->mp->_ini.get<int>("semiGlobalMatching.maxTCams", 10);
-    tcams = new StaticVector<int>();
-    *tcams = sp->pc->findNearestCamsFromSeeds(rc, nnearestcams);
+    tcams = sp->pc->findNearestCamsFromSeeds(rc, nnearestcams);
 
     wsh = sp->mp->_ini.get<int>("semiGlobalMatching.wsh", 4);
     gammaC = (float)sp->mp->_ini.get<double>("semiGlobalMatching.gammaC", 5.5);
@@ -65,13 +64,11 @@ SemiGlobalMatchingRc::SemiGlobalMatchingRc(bool doComputeDepthsAndResetTCams, in
     }
     else
     {
-        delete tcams;
-        tcams = nullptr;
         depths = nullptr;
         depthsTcamsLimits = nullptr;
         if(mvsUtils::FileExists(tcamsFileName) && mvsUtils::FileExists(depthsFileName) && mvsUtils::FileExists(depthsTcamsLimitsFileName))
         {
-            tcams = loadArrayFromFile<int>(tcamsFileName, true);
+            loadArrayFromFile<int>( tcams, tcamsFileName, true);
             depths = loadArrayFromFile<float>(depthsFileName);
             depthsTcamsLimits = loadArrayFromFile<Pixel>(depthsTcamsLimitsFileName);
         }
@@ -80,7 +77,6 @@ SemiGlobalMatchingRc::SemiGlobalMatchingRc(bool doComputeDepthsAndResetTCams, in
 
 SemiGlobalMatchingRc::~SemiGlobalMatchingRc()
 {
-    delete tcams;
     delete depths;
     delete depthsTcamsLimits;
 }
@@ -88,7 +84,7 @@ SemiGlobalMatchingRc::~SemiGlobalMatchingRc()
 /**
  * @brief Depths of all seeds (regarding the camera plane and not the camera center).
  */
-StaticVector<float>* SemiGlobalMatchingRc::getTcSeedsRcPlaneDists(int rc, StaticVector<int>* tcams)
+StaticVector<float>* SemiGlobalMatchingRc::getTcSeedsRcPlaneDists(int rc, const StaticVector<int>& tcams)
 {
     OrientedPoint rcplane;
     rcplane.p = sp->mp->CArr[rc];
@@ -96,10 +92,10 @@ StaticVector<float>* SemiGlobalMatchingRc::getTcSeedsRcPlaneDists(int rc, Static
     rcplane.n = rcplane.n.normalize();
 
     int nTcSeeds = 0;
-    for(int c = 0; c < tcams->size(); c++)
+    for(int c = 0; c < tcams.size(); c++)
     {
         StaticVector<SeedPoint>* seeds;
-        mvsUtils::loadSeedsFromFile(&seeds, (*tcams)[c], sp->mp, mvsUtils::EFileType::seeds);
+        mvsUtils::loadSeedsFromFile(&seeds, tcams[c], sp->mp, mvsUtils::EFileType::seeds);
         nTcSeeds += seeds->size();
         delete seeds;
     } // for c
@@ -107,10 +103,10 @@ StaticVector<float>* SemiGlobalMatchingRc::getTcSeedsRcPlaneDists(int rc, Static
     StaticVector<float>* rcDists = new StaticVector<float>();
     rcDists->reserve(nTcSeeds);
 
-    for(int c = 0; c < tcams->size(); c++)
+    for(int c = 0; c < tcams.size(); c++)
     {
         StaticVector<SeedPoint>* seeds;
-        mvsUtils::loadSeedsFromFile(&seeds, (*tcams)[c], sp->mp, mvsUtils::EFileType::seeds);
+        mvsUtils::loadSeedsFromFile(&seeds, tcams[c], sp->mp, mvsUtils::EFileType::seeds);
         for(int i = 0; i < seeds->size(); i++)
         {
             rcDists->push_back(pointPlaneDistance((*seeds)[i].op.p, rcplane.p, rcplane.n));
@@ -295,17 +291,16 @@ StaticVector<StaticVector<float>*>* SemiGlobalMatchingRc::computeAllDepthsAndRes
     };
     */
 
-    StaticVector<int>* tcamsNew = new StaticVector<int>();
+    StaticVector<int> tcamsNew;
     StaticVector<StaticVector<float>*>* alldepths = new StaticVector<StaticVector<float>*>();
-    tcamsNew->reserve(tcams->size());
-    alldepths->reserve(tcams->size());
+    alldepths->reserve(tcams.size());
 
     float midDepth = getCGDepthFromSeeds(sp->mp, rc);
 
-    for(int c = 0; c < tcams->size(); c++)
+    for(int c = 0; c < tcams.size(); c++)
     {
         // depths of all meaningful points on the principal ray of the reference camera regarding the target camera tc
-        StaticVector<float>* tcdepths = sp->cps->getDepthsRcTc(rc, (*tcams)[c], scale, midDepth, sp->rcTcDepthsHalfLimit);
+        StaticVector<float>* tcdepths = sp->cps->getDepthsRcTc(rc, tcams[c], scale, midDepth, sp->rcTcDepthsHalfLimit);
         if(sizeOfStaticVector<float>(tcdepths) < 50)
         {
             // fallback if we don't have enough valid samples over the epipolar line
@@ -331,11 +326,10 @@ StaticVector<StaticVector<float>*>* SemiGlobalMatchingRc::computeAllDepthsAndRes
         if(tcdepths != nullptr)
         {
             alldepths->push_back(tcdepths);
-            tcamsNew->push_back((*tcams)[c]);
+            tcamsNew.push_back(tcams[c]);
         }
     }
 
-    delete tcams;
     tcams = tcamsNew;
 
     /*
@@ -353,9 +347,9 @@ StaticVector<StaticVector<float>*>* SemiGlobalMatchingRc::computeAllDepthsAndRes
 void SemiGlobalMatchingRc::computeDepthsTcamsLimits(StaticVector<StaticVector<float>*>* alldepths)
 {
     depthsTcamsLimits = new StaticVector<Pixel>();
-    depthsTcamsLimits->reserve(tcams->size());
+    depthsTcamsLimits->reserve(tcams.size());
 
-    for(int c = 0; c < tcams->size(); c++)
+    for(int c = 0; c < tcams.size(); c++)
     {
         float d1 = (*(*alldepths)[c])[0];
         float d2 = (*(*alldepths)[c])[(*alldepths)[c]->size() - 1];
@@ -558,7 +552,7 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
     if(sp->mp->verbose)
         ALICEVISION_LOG_DEBUG("sgmrc: processing " << (rc + 1) << " of " << sp->mp->ncams << ".");
 
-    if(tcams->size() == 0)
+    if(tcams.size() == 0)
     {
         return false;
     }
@@ -577,6 +571,8 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
 
     StaticVector<unsigned char>* simVolume = nullptr;
 
+    sp->cps->cameraToDevice( rc, tcams );
+
     StaticVectorBool* rcSilhoueteMap = nullptr;
     if(sp->useSilhouetteMaskCodedByColor)
     {
@@ -588,7 +584,7 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
 
     {
         StaticVector<float>* subDepths = getSubDepthsForTCam(0);
-        SemiGlobalMatchingRcTc srt(subDepths, rc, (*tcams)[0], scale, step, sp, rcSilhoueteMap);
+        SemiGlobalMatchingRcTc srt(subDepths, rc, tcams[0], scale, step, sp, rcSilhoueteMap);
         simVolume = srt.computeDepthSimMapVolume(volumeMBinGPUMem, wsh, gammaC, gammaP);
         delete subDepths;
     }
@@ -600,12 +596,11 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
     svol->copyVolume(simVolume, (*depthsTcamsLimits)[0].x, (*depthsTcamsLimits)[0].y);
     delete simVolume;
 
-    for(int c = 1; c < tcams->size(); c++)
+    for(int c = 1; c < tcams.size(); c++)
     {
         StaticVector<float>* subDepths = getSubDepthsForTCam(c);
-        SemiGlobalMatchingRcTc* srt = new SemiGlobalMatchingRcTc(subDepths, rc, (*tcams)[c], scale, step, sp, rcSilhoueteMap);
-        simVolume = srt->computeDepthSimMapVolume(volumeMBinGPUMem, wsh, gammaC, gammaP);
-        delete srt;
+        SemiGlobalMatchingRcTc srt(subDepths, rc, tcams[c], scale, step, sp, rcSilhoueteMap);
+        simVolume = srt.computeDepthSimMapVolume(volumeMBinGPUMem, wsh, gammaC, gammaP);
         delete subDepths;
         svol->addVolumeSecondMin(simVolume,(*depthsTcamsLimits)[c].x,(*depthsTcamsLimits)[c].y);
         delete simVolume;
