@@ -27,12 +27,15 @@ namespace depthMap {
 namespace bfs = boost::filesystem;
 
 SemiGlobalMatchingRc::SemiGlobalMatchingRc(bool doComputeDepthsAndResetTCams, int _rc, int _scale, int _step, SemiGlobalMatchingParams* _sp)
+    : rc( _rc )
+    , scale( _scale )
+    , step( _step )
 {
     sp = _sp;
 
-    rc = _rc;
-    scale = _scale;
-    step = _step;
+    // rc = _rc;
+    // scale = _scale;
+    // step = _step;
 
     w = sp->mp->getWidth(rc) / (scale * step);
     h = sp->mp->getHeight(rc) / (scale * step);

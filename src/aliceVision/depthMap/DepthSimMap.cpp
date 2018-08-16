@@ -19,11 +19,11 @@ namespace aliceVision {
 namespace depthMap {
 
 DepthSimMap::DepthSimMap(int _rc, mvsUtils::MultiViewParams* _mp, int _scale, int _step)
+    : scale( _scale )
+    , step( _step )
 {
     rc = _rc;
     mp = _mp;
-    scale = _scale;
-    step = _step;
     w = mp->getWidth(rc) / (scale * step);
     h = mp->getHeight(rc) / (scale * step);
     dsm = new StaticVector<DepthSim>();

@@ -40,7 +40,9 @@ protected:
 
     SemiGlobalMatchingParams* sp;
 
-    int rc, scale, step;
+    const int rc;
+    const int scale;
+    const int step;
     int wsh;
     float gammaC, gammaP;
     StaticVector<float>* depths;

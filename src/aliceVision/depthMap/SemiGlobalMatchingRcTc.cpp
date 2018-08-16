@@ -12,19 +12,17 @@ namespace depthMap {
 
 SemiGlobalMatchingRcTc::SemiGlobalMatchingRcTc(StaticVector<float>* _rcTcDepths, int _rc, int _tc, int _scale, int _step, SemiGlobalMatchingParams* _sp,
                          StaticVectorBool* _rcSilhoueteMap)
+    : sp( _sp )
+    , rc( _rc )
+    , tc( _tc )
+    , scale( _scale )
+    , step( _step )
+    , w( sp->mp->getWidth(rc) / (scale * step) )
+    , h( sp->mp->getHeight(rc) / (scale * step) )
 {
-    sp = _sp;
-
-    rc = _rc;
-    tc = _tc;
-    scale = _scale;
-    step = _step;
     epipShift = 0.0f;
 
     rcTcDepths = _rcTcDepths;
-
-    w = sp->mp->getWidth(rc) / (scale * step);
-    h = sp->mp->getHeight(rc) / (scale * step);
 
     rcSilhoueteMap = _rcSilhoueteMap;
 }

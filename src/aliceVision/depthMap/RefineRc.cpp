@@ -110,11 +110,13 @@ DepthSimMap* RefineRc::refineAndFuseDepthSimMapCUDA(DepthSimMap* depthPixSizeMap
     dataMaps->reserve(tcams.size() + 1);
     dataMaps->push_back(depthPixSizeMapVis); //!!DO NOT ERASE!!!
 
+    const int scale = 1;
+
     for(int c = 0; c < tcams.size(); c++)
     {
         int tc = tcams[c];
 
-        DepthSimMap* depthSimMapC = new DepthSimMap(rc, sp->mp, 1, 1);
+        DepthSimMap* depthSimMapC = new DepthSimMap(rc, sp->mp, scale, 1);
         StaticVector<float>* depthMap = depthPixSizeMapVis->getDepthMap();
         depthSimMapC->initJustFromDepthMap(depthMap, 1.0f);
         delete depthMap;
@@ -130,7 +132,7 @@ DepthSimMap* RefineRc::refineAndFuseDepthSimMapCUDA(DepthSimMap* depthPixSizeMap
     }
 
     // in order to fit into GPU memory
-    DepthSimMap* depthSimMapFused = new DepthSimMap(rc, sp->mp, 1, 1);
+    DepthSimMap* depthSimMapFused = new DepthSimMap(rc, sp->mp, scale, 1);
 
     int nhParts = 4;
     int hPartHeightGlob = h11 / nhParts;

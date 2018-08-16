@@ -25,12 +25,17 @@ public:
 private:
     StaticVector<Voxel>* getPixels();
 
-    SemiGlobalMatchingParams* sp;
+    const SemiGlobalMatchingParams* const sp;
 
-    int rc, tc, scale, step;
+    const int rc;
+    const int tc;
+    const int scale;
+    const int step;
+    const int w;
+    const int h;
     StaticVector<float>* rcTcDepths;
     float epipShift;
-    int w, h;
+    // int w, h;
     StaticVectorBool* rcSilhoueteMap;
 };
 
