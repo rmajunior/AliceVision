@@ -58,9 +58,10 @@ public:
     // void** ps_texs_arr;
     Pyramid ps_texs_arr;
 
-    StaticVector<cameraStruct> cams;
-    StaticVector<int>          camsRcs;
-    StaticVector<long>         camsTimes;
+    std::vector<cameraStructBase> camsBases;
+    std::vector<cameraStruct>     cams;
+    StaticVector<int>             camsRcs;
+    StaticVector<long>            camsTimes;
 
     bool verbose;
     bool doVizualizePartialDepthMaps;

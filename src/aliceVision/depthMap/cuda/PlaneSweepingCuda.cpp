@@ -21,13 +21,11 @@
 namespace aliceVision {
 namespace depthMap {
 
-static void cps_fillCamera(cameraStruct& cam, int c, mvsUtils::MultiViewParams* mp, int scale, const char* called_from )
+static void cps_fillCamera(cameraStruct& cam, cameraStructBase& base, int c, mvsUtils::MultiViewParams* mp, int scale, const char* called_from )
 {
     std::cerr << "Calling " << __FUNCTION__
               << "     to fill info for camera " << c << " at scale " << scale
               << " from " << called_from << std::endl;
-
-    cam.scale = scale;
 
     Matrix3x3 scaleM;
     scaleM.m11 = 1.0 / (float)scale;
@@ -45,72 +43,74 @@ static void cps_fillCamera(cameraStruct& cam, int c, mvsUtils::MultiViewParams* 
     Matrix3x4 P = K * (mp->RArr[c] | (Point3d(0.0, 0.0, 0.0) - mp->RArr[c] * mp->CArr[c]));
     Matrix3x3 iP = mp->iRArr[c] * iK;
 
-    cam.base.C.x = mp->CArr[c].x;
-    cam.base.C.y = mp->CArr[c].y;
-    cam.base.C.z = mp->CArr[c].z;
+    base.C.x = mp->CArr[c].x;
+    base.C.y = mp->CArr[c].y;
+    base.C.z = mp->CArr[c].z;
 
-    cam.base.P[0] = P.m11;
-    cam.base.P[1] = P.m21;
-    cam.base.P[2] = P.m31;
-    cam.base.P[3] = P.m12;
-    cam.base.P[4] = P.m22;
-    cam.base.P[5] = P.m32;
-    cam.base.P[6] = P.m13;
-    cam.base.P[7] = P.m23;
-    cam.base.P[8] = P.m33;
-    cam.base.P[9] = P.m14;
-    cam.base.P[10] = P.m24;
-    cam.base.P[11] = P.m34;
+    base.P[0] = P.m11;
+    base.P[1] = P.m21;
+    base.P[2] = P.m31;
+    base.P[3] = P.m12;
+    base.P[4] = P.m22;
+    base.P[5] = P.m32;
+    base.P[6] = P.m13;
+    base.P[7] = P.m23;
+    base.P[8] = P.m33;
+    base.P[9] = P.m14;
+    base.P[10] = P.m24;
+    base.P[11] = P.m34;
 
-    cam.base.iP[0] = iP.m11;
-    cam.base.iP[1] = iP.m21;
-    cam.base.iP[2] = iP.m31;
-    cam.base.iP[3] = iP.m12;
-    cam.base.iP[4] = iP.m22;
-    cam.base.iP[5] = iP.m32;
-    cam.base.iP[6] = iP.m13;
-    cam.base.iP[7] = iP.m23;
-    cam.base.iP[8] = iP.m33;
+    base.iP[0] = iP.m11;
+    base.iP[1] = iP.m21;
+    base.iP[2] = iP.m31;
+    base.iP[3] = iP.m12;
+    base.iP[4] = iP.m22;
+    base.iP[5] = iP.m32;
+    base.iP[6] = iP.m13;
+    base.iP[7] = iP.m23;
+    base.iP[8] = iP.m33;
 
-    cam.base.R[0] = mp->RArr[c].m11;
-    cam.base.R[1] = mp->RArr[c].m21;
-    cam.base.R[2] = mp->RArr[c].m31;
-    cam.base.R[3] = mp->RArr[c].m12;
-    cam.base.R[4] = mp->RArr[c].m22;
-    cam.base.R[5] = mp->RArr[c].m32;
-    cam.base.R[6] = mp->RArr[c].m13;
-    cam.base.R[7] = mp->RArr[c].m23;
-    cam.base.R[8] = mp->RArr[c].m33;
+    base.R[0] = mp->RArr[c].m11;
+    base.R[1] = mp->RArr[c].m21;
+    base.R[2] = mp->RArr[c].m31;
+    base.R[3] = mp->RArr[c].m12;
+    base.R[4] = mp->RArr[c].m22;
+    base.R[5] = mp->RArr[c].m32;
+    base.R[6] = mp->RArr[c].m13;
+    base.R[7] = mp->RArr[c].m23;
+    base.R[8] = mp->RArr[c].m33;
 
-    cam.base.iR[0] = mp->iRArr[c].m11;
-    cam.base.iR[1] = mp->iRArr[c].m21;
-    cam.base.iR[2] = mp->iRArr[c].m31;
-    cam.base.iR[3] = mp->iRArr[c].m12;
-    cam.base.iR[4] = mp->iRArr[c].m22;
-    cam.base.iR[5] = mp->iRArr[c].m32;
-    cam.base.iR[6] = mp->iRArr[c].m13;
-    cam.base.iR[7] = mp->iRArr[c].m23;
-    cam.base.iR[8] = mp->iRArr[c].m33;
+    base.iR[0] = mp->iRArr[c].m11;
+    base.iR[1] = mp->iRArr[c].m21;
+    base.iR[2] = mp->iRArr[c].m31;
+    base.iR[3] = mp->iRArr[c].m12;
+    base.iR[4] = mp->iRArr[c].m22;
+    base.iR[5] = mp->iRArr[c].m32;
+    base.iR[6] = mp->iRArr[c].m13;
+    base.iR[7] = mp->iRArr[c].m23;
+    base.iR[8] = mp->iRArr[c].m33;
 
-    cam.base.K[0] = K.m11;
-    cam.base.K[1] = K.m21;
-    cam.base.K[2] = K.m31;
-    cam.base.K[3] = K.m12;
-    cam.base.K[4] = K.m22;
-    cam.base.K[5] = K.m32;
-    cam.base.K[6] = K.m13;
-    cam.base.K[7] = K.m23;
-    cam.base.K[8] = K.m33;
+    base.K[0] = K.m11;
+    base.K[1] = K.m21;
+    base.K[2] = K.m31;
+    base.K[3] = K.m12;
+    base.K[4] = K.m22;
+    base.K[5] = K.m32;
+    base.K[6] = K.m13;
+    base.K[7] = K.m23;
+    base.K[8] = K.m33;
 
-    cam.base.iK[0] = iK.m11;
-    cam.base.iK[1] = iK.m21;
-    cam.base.iK[2] = iK.m31;
-    cam.base.iK[3] = iK.m12;
-    cam.base.iK[4] = iK.m22;
-    cam.base.iK[5] = iK.m32;
-    cam.base.iK[6] = iK.m13;
-    cam.base.iK[7] = iK.m23;
-    cam.base.iK[8] = iK.m33;
+    base.iK[0] = iK.m11;
+    base.iK[1] = iK.m21;
+    base.iK[2] = iK.m31;
+    base.iK[3] = iK.m12;
+    base.iK[4] = iK.m22;
+    base.iK[5] = iK.m32;
+    base.iK[6] = iK.m13;
+    base.iK[7] = iK.m23;
+    base.iK[8] = iK.m33;
+
+    ps_initCameraMatrix( base );
 }
 
 static void cps_fillCameraData(mvsUtils::ImagesCache* ic, cameraStruct& cam, int c, mvsUtils::MultiViewParams* mp)
@@ -186,16 +186,22 @@ PlaneSweepingCuda::PlaneSweepingCuda(int _CUDADeviceNo, mvsUtils::ImagesCache* _
     // allocate global on the device
     ps_deviceAllocate(ps_texs_arr, nImgsInGPUAtTime, maxImageWidth, maxImageHeight, scales, CUDADeviceNo);
 
+    camsBases.resize(nImgsInGPUAtTime);
     cams     .resize(nImgsInGPUAtTime);
     camsRcs  .resize(nImgsInGPUAtTime);
     camsTimes.resize(nImgsInGPUAtTime);
+
+    for( int rc = 0; rc < nImgsInGPUAtTime; ++rc )
+    {
+        cams[rc].base = &camsBases[rc];
+    }
 
     for(int rc = 0; rc < nImgsInGPUAtTime; ++rc)
     {
         cams[rc].tex_rgba_hmh =
             new CudaHostMemoryHeap<uchar4, 2>(CudaSize<2>(maxImageWidth, maxImageHeight));
 
-        cps_fillCamera(cams[rc], rc, mp, 1, __FUNCTION__ );
+        cps_fillCamera(cams[rc], camsBases[rc], rc, mp, 1, __FUNCTION__ );
         cps_fillCameraData(ic, cams[rc], rc, mp);
         camsRcs[rc]   = rc;
         camsTimes[rc] = clock();
@@ -225,7 +231,7 @@ int PlaneSweepingCuda::addCam(int rc, int scale, const char* calling_func)
 
         long t1 = clock();
 
-        cps_fillCamera(cams[oldestId], rc, mp, scale, calling_func );
+        cps_fillCamera(cams[oldestId], camsBases[oldestId], rc, mp, scale, calling_func );
         cps_fillCameraData(ic, cams[oldestId], rc, mp);
         ps_deviceUpdateCam(ps_texs_arr, cams[oldestId], oldestId,
                            CUDADeviceNo, nImgsInGPUAtTime, scales, mp->getMaxImageWidth(), mp->getMaxImageHeight(), varianceWSH);
@@ -240,7 +246,7 @@ int PlaneSweepingCuda::addCam(int rc, int scale, const char* calling_func)
     else
     {
 
-        cps_fillCamera(cams[id], rc, mp, scale, calling_func );
+        cps_fillCamera(cams[id], camsBases[id], rc, mp, scale, calling_func );
         // cps_fillCameraData((cameraStruct*)(*cams)[id], rc, mp, H, scales);
         // ps_deviceUpdateCam((cameraStruct*)(*cams)[id], id, scales);
 
@@ -640,19 +646,11 @@ bool PlaneSweepingCuda::refineRcTcDepthMap(bool useTcOrRcPixSize, int nStepsToRe
 
     camsids[1] = addCam(tc, scale, __FUNCTION__);
 
-    std::vector<cameraStruct*> ttcams( camsids.size() );
+    std::vector<cameraStruct> ttcams( camsids.size() );
     for(int i = 0; i < camsids.size(); i++)
     {
-        ttcams[i] = &cams[camsids[i]];
-        ttcams[i]->camId = camsids[i];
-        if(i == 0)
-        {
-            ttcams[i]->rc = rc;
-        }
-        else
-        {
-            ttcams[i]->rc = tc;
-        }
+        ttcams[i] = cams[camsids[i]];
+        ttcams[i].camId = camsids[i];
     }
 
     // sweep
@@ -729,15 +727,13 @@ float PlaneSweepingCuda::sweepPixelsToVolume( int nDepthsToSearch, StaticVector<
         camsids[c+1] = addCam(tc, scale, __FUNCTION__);
     }
 
-    std::vector<cameraStruct*> ttcams( camsids.size() );
+    std::vector<cameraStruct> ttcams( camsids.size() );
     for(int i = 0; i < camsids.size(); i++) {
-        ttcams[i] = &cams[camsids[i]];
-        ttcams[i]->camId = camsids[i];
-        if (i == 0) {
-            ttcams[i]->rc = rc;
-        } else {
-            ttcams[i]->rc = tcams[i - 1];
-        }
+        cams[camsids[i]].camId = camsids[i];
+        // cams[camsids[i]].rc    = (i==0) ? rc : tcams[i - 1];
+
+        ttcams[i] = cams[camsids[i]];
+        // ttcams[i].camId = camsids[i];
     }
 
 #if 0
@@ -878,12 +874,11 @@ bool PlaneSweepingCuda::optimizeDepthSimMapGradientDescent(StaticVector<DepthSim
     if(verbose)
         printf("rc: %i, ", rc);
 
-    cameraStruct** ttcams = new cameraStruct*[camsids.size()];
+    std::vector<cameraStruct> ttcams( camsids.size() );
     for(int i = 0; i < camsids.size(); i++)
     {
-        ttcams[i] = &cams[camsids[i]];
-        ttcams[i]->camId = camsids[i];
-        ttcams[i]->rc = rc;
+        ttcams[i]       = cams[camsids[i]];
+        ttcams[i].camId = camsids[i];
     }
 
     // sweep
@@ -929,12 +924,6 @@ bool PlaneSweepingCuda::optimizeDepthSimMapGradientDescent(StaticVector<DepthSim
         delete dataMaps_hmh[i];
     }
     delete[] dataMaps_hmh;
-
-    for(int i = 0; i < camsids.size(); i++)
-    {
-        ttcams[i] = NULL;
-    }
-    delete[] ttcams;
 
     if(verbose)
         mvsUtils::printfElapsedTime(t1);

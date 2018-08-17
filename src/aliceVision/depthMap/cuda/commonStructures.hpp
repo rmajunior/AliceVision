@@ -983,12 +983,9 @@ typedef cameraStructBase DeviceCameraStructBase;
 
 struct cameraStruct
 {
-    cameraStructBase base;
+    const cameraStructBase* base;
     CudaHostMemoryHeap<uchar4, 2>* tex_rgba_hmh;
     int camId;
-    int rc;
-    int scale;
-    int blurid;
 };
 
 struct ps_parameters
