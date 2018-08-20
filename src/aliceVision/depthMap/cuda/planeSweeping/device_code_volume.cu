@@ -12,15 +12,17 @@ inline __device__ void volume_computePatch( patch& ptch, const float fpPlaneDept
     float3 p;
     float pixSize;
 
-    p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth);
-    pixSize = computePixSize(p);
+    p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth); // no texture use
+    pixSize = computePixSize(p); // no texture use
 
     ptch.p = p;
     ptch.d = pixSize;
-    computeRotCSEpip(ptch, p);
+    computeRotCSEpip(ptch, p); // no texture use
 }
 
 __global__ void volume_slice_kernel(
+                                    cudaTextureObject_t rc_tex,
+                                    cudaTextureObject_t tc_tex,
                                     float* depths_dev,
                                     int width, int height, int wsh,
                                     const float gammaC, const float gammaP, const float epipShift,
@@ -43,15 +45,16 @@ __global__ void volume_slice_kernel(
     if( x >= width  ) return;
     if( y >= height ) return;
 
-    const unsigned char occluded = tex2D(r4tex, x+0.5f, y+0.5f).w;
-    if( occluded == 1 ) return;
+    // const unsigned char occluded = tex2D(r4tex, x+0.5f, y+0.5f).w;
+    const float occluded = tex2D<float4>(rc_tex, x+0.5f, y+0.5f).w;
+    if( occluded > 0.75f ) return;
 
     const int2 pix = make_int2( x, y );
 
     patch ptcho;
-    volume_computePatch(ptcho, fpPlaneDepth, pix);
+    volume_computePatch(ptcho, fpPlaneDepth, pix); // no texture use
 
-    float fsim = compNCCby3DptsYK(ptcho, wsh, width, height, gammaC, gammaP, epipShift);
+    float fsim = compNCCby3DptsYK(rc_tex, tc_tex, ptcho, wsh, width, height, gammaC, gammaP, epipShift);
 
     const float fminVal = -1.0f;
     const float fmaxVal = 1.0f;

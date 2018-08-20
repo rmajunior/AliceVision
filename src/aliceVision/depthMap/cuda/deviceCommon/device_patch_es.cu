@@ -278,6 +278,78 @@ __device__ float compNCCbyH(patch& ptch, int wsh)
  * 
  * @return similarity value
  */
+__device__ float compNCCby3DptsYK(cudaTextureObject_t rc_tex, cudaTextureObject_t tc_tex, patch& ptch, int wsh, int width, int height, const float _gammaC, const float _gammaP,
+                                  const float epipShift)
+{
+    float3 p = ptch.p;
+    float2 rp = project3DPoint(sg_s_r.P, p);
+    float2 tp = project3DPoint(sg_s_t.P, p);
+
+    float3 pUp = p + ptch.y * (ptch.d * 10.0f); // assuming that ptch.y is ortogonal to epipolar plane
+    float2 tvUp = project3DPoint(sg_s_t.P, pUp);
+    tvUp = tvUp - tp;
+    normalize(tvUp);
+    float2 vEpipShift = tvUp * epipShift;
+    tp = tp + vEpipShift;
+
+    const float dd = wsh + 2.0f;
+    if((rp.x < dd) || (rp.x > (float)(width  - 1) - dd) ||
+       (rp.y < dd) || (rp.y > (float)(height - 1) - dd) ||
+       (tp.x < dd) || (tp.x > (float)(width  - 1) - dd) ||
+       (tp.y < dd) || (tp.y > (float)(height - 1) - dd))
+    {
+        return 1.0f;
+    }
+
+    // see CUDA_C_Programming_Guide.pdf ... E.2 pp132-133 ... adding 0.5 caises that tex2D return for point i,j exactly
+    // value od I(i,j) ... it is what we want
+    float4 gcr = 255.0f * tex2D<float4>(rc_tex, rp.x + 0.5f, rp.y + 0.5f);
+    float4 gct = 255.0f * tex2D<float4>(tc_tex, tp.x + 0.5f, tp.y + 0.5f);
+    // gcr = 255.0f*tex2D(r4tex, rp.x, rp.y);
+    // gct = 255.0f*tex2D(t4tex, tp.x, tp.y);
+
+    float gammaC = _gammaC;
+    // float gammaC = ((gcr.w>0)||(gct.w>0))?sigmoid(_gammaC,25.5f,20.0f,10.0f,fmaxf(gcr.w,gct.w)):_gammaC;
+    // float gammaP = ((gcr.w>0)||(gct.w>0))?sigmoid(1.5,(float)(wsh+3),30.0f,20.0f,fmaxf(gcr.w,gct.w)):_gammaP;
+    float gammaP = _gammaP;
+
+    simStat sst = simStat();
+    for(int yp = -wsh; yp <= wsh; yp++)
+    {
+        for(int xp = -wsh; xp <= wsh; xp++)
+        {
+            p = ptch.p + ptch.x * (float)(ptch.d * (float)xp) + ptch.y * (float)(ptch.d * (float)yp);
+            float2 rp1 = project3DPoint(sg_s_r.P, p);
+            float2 tp1 = project3DPoint(sg_s_t.P, p) + vEpipShift;
+            // float2 rp1 = rp + rvLeft*(float)xp + rvUp*(float)yp;
+            // float2 tp1 = tp + tvLeft*(float)xp + tvUp*((float)yp+epipShift);
+
+            // see CUDA_C_Programming_Guide.pdf ... E.2 pp132-133 ... adding 0.5 caises that tex2D return for point i,j
+            // exactly value od I(i,j) ... it is what we want
+            float4 gcr1f = tex2D<float4>(rc_tex, rp1.x + 0.5f, rp1.y + 0.5f);
+            float4 gct1f = tex2D<float4>(tc_tex, tp1.x + 0.5f, tp1.y + 0.5f);
+            float4 gcr1 = 255.0f * gcr1f;
+            float4 gct1 = 255.0f * gct1f;
+            // gcr1 = 255.0f*tex2D(r4tex, rp1.x, rp1.y);
+            // gct1 = 255.0f*tex2D(t4tex, tp1.x, tp1.y);
+
+            // Weighting is based on:
+            //  * color difference to the center pixel of the patch:
+            //    ** low value (close to 0) means that the color is different from the center pixel (ie. strongly supported surface)
+            //    ** high value (close to 1) means that the color is close the center pixel (ie. uniform color)
+            //  * distance in image to the center pixel of the patch:
+            //    ** low value (close to 0) means that the pixel is close to the center of the patch
+            //    ** high value (close to 1) means that the pixel is far from the center of the patch
+            float w = CostYKfromLab(xp, yp, gcr, gcr1, gammaC, gammaP) * CostYKfromLab(xp, yp, gct, gct1, gammaC, gammaP);
+            assert(w >= 0.f);
+            assert(w <= 1.f);
+            sst.update(gcr1.x, gct1.x, w); // TODO: try with gcr1f and gtc1f
+        }
+    }
+    sst.computeWSim();
+    return sst.sim;
+}
+
 __device__ float compNCCby3DptsYK(patch& ptch, int wsh, int width, int height, const float _gammaC, const float _gammaP,
                                   const float epipShift)
 {

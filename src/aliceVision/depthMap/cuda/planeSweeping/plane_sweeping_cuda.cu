@@ -800,6 +800,39 @@ static void ps_computeSimilarityVolume(
     clock_t tall = tic();
     testCUDAdeviceNo(CUDAdeviceNo);
     cudaError_t err;
+
+    cudaTextureObject_t rc_tex;
+    std::vector<cudaTextureObject_t> tc_tex( max_ct );
+
+    cudaTextureDesc  tex_desc;
+    memset(&tex_desc, 0, sizeof(cudaTextureDesc));
+    tex_desc.normalizedCoords = 0; // addressed (x,y) in [width,height]
+    tex_desc.addressMode[0]   = cudaAddressModeClamp;
+    tex_desc.addressMode[1]   = cudaAddressModeClamp;
+    tex_desc.addressMode[2]   = cudaAddressModeClamp;
+    tex_desc.readMode         = cudaReadModeNormalizedFloat; // transform uchar to float
+    tex_desc.filterMode       = cudaFilterModeLinear; // with interpolation
+
+    cudaResourceDesc res_desc;
+    res_desc.resType = cudaResourceTypeArray;
+
+    res_desc.res.array.array = ps_texs_arr[cams[0].camId][scale]->getArray();
+    err = cudaCreateTextureObject( &rc_tex, &res_desc, &tex_desc, 0 );
+    if( err != cudaSuccess )
+    {
+        ALICEVISION_LOG_ERROR( "Failed to bind texture object to ref cam texture: " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Failed to bind texture object to ref cam texture." );
+    }
+    for( int ct=0; ct<max_ct; ct++ )
+    {
+        res_desc.res.array.array = ps_texs_arr[cams[ct+1].camId][scale]->getArray();
+        err = cudaCreateTextureObject( &tc_tex[ct], &res_desc, &tex_desc, 0 );
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Failed to bind texture object to tc cam texture #" << ct << ": " << cudaGetErrorString(err) );
+            throw std::runtime_error( "Failed to bind texture object to tc cam texture." );
+        }
+    }
     
     for( int ct=0; ct<max_ct; ct++ )
     {
@@ -810,31 +843,16 @@ static void ps_computeSimilarityVolume(
 
         // setup cameras matrices to the constant memory
         ps_init_reference_camera_matrices(cams[0].base);
-        CHECK_CUDA_ERROR();
-        err = cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale]->getArray(),
-                           cudaCreateChannelDesc<uchar4>());
-        if( err != cudaSuccess )
-        {
-            ALICEVISION_LOG_ERROR( "Failed to bind texture, " << cudaGetErrorString(err) );
-        }
 
-        // int c = 1;
         ps_init_target_camera_matrices(cams[ct+1].base);
-        CHECK_CUDA_ERROR();
-        err = cudaBindTextureToArray(t4tex, ps_texs_arr[cams[ct+1].camId][scale]->getArray(),
-                           cudaCreateChannelDesc<uchar4>());
-        if( err != cudaSuccess )
-        {
-            ALICEVISION_LOG_ERROR( "Failed to bind texture, " << cudaGetErrorString(err) );
-        }
     
         //--------------------------------------------------------------------------------------------------
         // init similarity volume
         configure_init_kernel_2Dfloat();
 
         /* pitch is always a multiple of 32 bytes (CC 2 and above is at least 128).
-        * Since our elements are int-sized (4 bytes), we can initialize the pitch as well.
-        */
+         * Since our elements are int-sized (4 bytes), we can initialize the pitch as well.
+         */
         const size_t elements        = vol_dmp[ct]->getBytes() / sizeof(float);
         const int    init_kernel_2Dfloat_grid = divUp( elements, init_kernel_2Dfloat_block.x );
 
@@ -859,6 +877,8 @@ static void ps_computeSimilarityVolume(
         volume_slice_kernel
             <<<volume_slice_kernel_grid, volume_slice_kernel_block>>>
             (
+            rc_tex,
+            tc_tex[ct],
             depths_dev[ct]->getBuffer(),
             width, height,
             wsh,
@@ -869,9 +889,11 @@ static void ps_computeSimilarityVolume(
         CHECK_CUDA_ERROR();
 
         cudaDeviceSynchronize();
-        cudaUnbindTexture(r4tex);
-        cudaUnbindTexture(t4tex);
     }
+
+    cudaDestroyTextureObject( rc_tex );
+    for( int ct=0; ct<max_ct; ct++ )
+        cudaDestroyTextureObject( tc_tex[ct] );
 
     if(verbose)
         printf("ps_computeSimilarityVolume elapsed time: %f ms \n", toc(tall));
