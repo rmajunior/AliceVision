@@ -10,19 +10,26 @@
 namespace aliceVision {
 namespace depthMap {
 
-SemiGlobalMatchingRcTc::SemiGlobalMatchingRcTc(StaticVector<float>* _rcTcDepths, int _rc, int _tc, int _scale, int _step, SemiGlobalMatchingParams* _sp,
-                         StaticVectorBool* _rcSilhoueteMap)
-    : sp( _sp )
+SemiGlobalMatchingRcTc::SemiGlobalMatchingRcTc(
+            const std::vector<int>& _index_set,
+            const std::vector<std::vector<float> >& _rcTcDepths,
+            int _rc,
+            const StaticVector<int>& _tc,
+            int _scale,
+            int _step,
+            SemiGlobalMatchingParams* _sp,
+            StaticVectorBool* _rcSilhoueteMap)
+    : index_set( _index_set )
+    , sp( _sp )
     , rc( _rc )
     , tc( _tc )
     , scale( _scale )
     , step( _step )
     , w( sp->mp->getWidth(rc) / (scale * step) )
     , h( sp->mp->getHeight(rc) / (scale * step) )
+    , rcTcDepths( _rcTcDepths )
 {
     epipShift = 0.0f;
-
-    rcTcDepths = _rcTcDepths;
 
     rcSilhoueteMap = _rcSilhoueteMap;
 }
@@ -59,60 +66,111 @@ StaticVector<Voxel>* SemiGlobalMatchingRcTc::getPixels()
     return pixels;
 }
 
-StaticVector<unsigned char>* SemiGlobalMatchingRcTc::computeDepthSimMapVolume(float& volumeMBinGPUMem, int wsh, float gammaC,
-                                                                   float gammaP)
+void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
+        std::vector<StaticVector<unsigned char> >& volume,
+        float& volumeMBinGPUMem,
+        int wsh,
+        float gammaC,
+        float gammaP)
 {
-    long tall = clock();
+    const long tall = clock();
 
-    int volStepXY = step;
-    int volDimX = w;
-    int volDimY = h;
-    int volDimZ = rcTcDepths->size();
+    const int volStepXY = step;
+    const int volDimX = w;
+    const int volDimY = h;
+    int maxDimZ = *index_set.begin();
 
-    StaticVector<unsigned char>* volume = new StaticVector<unsigned char>( volDimX * volDimY * volDimZ, 255 );
-
-    StaticVector<float> volume_tmp( volDimX * volDimY * volDimZ, 255.0f );
-
-    StaticVector<int> tcams;
-    tcams.push_back(tc);
-
-    StaticVector<Voxel>* pixels = getPixels();
-
-    volumeMBinGPUMem =
-        sp->cps->sweepPixelsToVolume(rcTcDepths->size(), volume_tmp,
-                                     volDimX, volDimY, volDimZ,
-                                     volStepXY,
-                                     rcTcDepths, rc, wsh, gammaC, gammaP, pixels, scale, 1,
-                                     tcams,
-                                     0.0f);
-    delete pixels;
-
-    for( int i=0; i<volDimX * volDimY * volDimZ; i++ )
+    for( auto j : index_set )
     {
-        (*volume)[i] = (unsigned char)( 255.0f * std::max(std::min(volume_tmp[i],1.0f),0.0f) );
+        const int volDimZ = rcTcDepths[j].size();
+
+        volume[j].resize( volDimX * volDimY * volDimZ );
+
+        maxDimZ = std::max( maxDimZ, volDimZ );
     }
+
+    float* volume_buf = new float[ index_set.size() * volDimX * volDimY * maxDimZ ];
+
+    std::map<int,float*> volume_tmp;
+
+    int ct = 0;
+    for( auto j : index_set )
+    {
+        volume_tmp.emplace( j, &volume_buf[ct * volDimX * volDimY * maxDimZ] );
+        ct++;
+    }
+
+#if 0
+    ct = 0;
+    for( auto j : index_set )
+    {
+        // const int volDimZ = rcTcDepths[j].size();
+
+        StaticVector<int> tcams;
+        tcams.push_back(tc[j]);
+
+        // float* ptr = volume_tmp[j];
+        float* ptr = &volume_buf[ ct * volDimX * volDimY * maxDimZ ];
+        volumeMBinGPUMem =
+            sp->cps->sweepPixelsToVolume( ptr,
+                                          volDimX, volDimY,
+                                          volStepXY,
+                                          rcTcDepths[j], rc, wsh, gammaC, gammaP, scale, 1,
+                                          tcams,
+                                          0.0f );
+        ct++;
+    }
+#else
+        const int volume_offset = volDimX * volDimY * maxDimZ;
+        volumeMBinGPUMem =
+            sp->cps->sweepPixelsToVolume( index_set,
+                                          volume_buf,
+                                          volume_offset,
+                                          volDimX, volDimY,
+                                          volStepXY,
+                                          rcTcDepths,
+                                          rc, tc,
+                                          wsh, gammaC, gammaP, scale, 1,
+                                          0.0f);
+#endif
+
+    for( auto j : index_set )
+    {
+        const int volDimZ = rcTcDepths[j].size();
+
+        for( int i=0; i<volDimX * volDimY * volDimZ; i++ )
+        {
+            float* ptr = volume_tmp[j];
+            volume[j][i] = (unsigned char)( 255.0f * std::max(std::min(ptr[i],1.0f),0.0f) );
+        }
+    }
+
+    delete [] volume_buf;
 
     // delete volume_tmp;
 
     if(sp->mp->verbose)
         mvsUtils::printfElapsedTime(tall, "SemiGlobalMatchingRcTc::computeDepthSimMapVolume ");
 
-    if(sp->P3 > 0)
+    for( auto j : index_set )
     {
-#pragma omp parallel for
-        for(int y = 0; y < volDimY; y++)
+        const int volDimZ = rcTcDepths[j].size();
+
+        if(sp->P3 > 0)
         {
-            for(int x = 0; x < volDimX; x++)
+#pragma omp parallel for
+            for(int y = 0; y < volDimY; y++)
             {
-                (*volume)[(volDimZ - 1) * volDimY * volDimX + y * volDimX + x] = sp->P3;
-                (*volume)[(volDimZ - 2) * volDimY * volDimX + y * volDimX + x] = sp->P3;
-                (*volume)[(volDimZ - 3) * volDimY * volDimX + y * volDimX + x] = sp->P3;
-                (*volume)[(volDimZ - 4) * volDimY * volDimX + y * volDimX + x] = sp->P3;
+                for(int x = 0; x < volDimX; x++)
+                {
+                    volume[j][(volDimZ - 1) * volDimY * volDimX + y * volDimX + x] = sp->P3;
+                    volume[j][(volDimZ - 2) * volDimY * volDimX + y * volDimX + x] = sp->P3;
+                    volume[j][(volDimZ - 3) * volDimY * volDimX + y * volDimX + x] = sp->P3;
+                    volume[j][(volDimZ - 4) * volDimY * volDimX + y * volDimX + x] = sp->P3;
+                }
             }
         }
     }
-
-    return volume;
 }
 
 } // namespace depthMap

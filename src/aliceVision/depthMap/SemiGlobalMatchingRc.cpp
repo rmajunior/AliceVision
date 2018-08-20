@@ -59,7 +59,7 @@ SemiGlobalMatchingRc::SemiGlobalMatchingRc(bool doComputeDepthsAndResetTCams, in
     SGM_idDepthMapFileName = sp->getSGM_idDepthMapFileName(viewId, scale, step);
 
     depths = nullptr;
-    depthsTcamsLimits = nullptr;
+    depthsTcamsLimits.clear();
 
     if(doComputeDepthsAndResetTCams)
     {
@@ -68,12 +68,12 @@ SemiGlobalMatchingRc::SemiGlobalMatchingRc(bool doComputeDepthsAndResetTCams, in
     else
     {
         depths = nullptr;
-        depthsTcamsLimits = nullptr;
+        depthsTcamsLimits.clear();
         if(mvsUtils::FileExists(tcamsFileName) && mvsUtils::FileExists(depthsFileName) && mvsUtils::FileExists(depthsTcamsLimitsFileName))
         {
             loadArrayFromFile<int>( tcams, tcamsFileName, true);
             depths = loadArrayFromFile<float>(depthsFileName);
-            depthsTcamsLimits = loadArrayFromFile<Pixel>(depthsTcamsLimitsFileName);
+            loadArrayFromFile<Pixel>( depthsTcamsLimits,  depthsTcamsLimitsFileName );
         }
     }
 }
@@ -81,7 +81,7 @@ SemiGlobalMatchingRc::SemiGlobalMatchingRc(bool doComputeDepthsAndResetTCams, in
 SemiGlobalMatchingRc::~SemiGlobalMatchingRc()
 {
     delete depths;
-    delete depthsTcamsLimits;
+    // delete depthsTcamsLimits;
 }
 
 /**
@@ -349,8 +349,7 @@ StaticVector<StaticVector<float>*>* SemiGlobalMatchingRc::computeAllDepthsAndRes
  */
 void SemiGlobalMatchingRc::computeDepthsTcamsLimits(StaticVector<StaticVector<float>*>* alldepths)
 {
-    depthsTcamsLimits = new StaticVector<Pixel>();
-    depthsTcamsLimits->reserve(tcams.size());
+    depthsTcamsLimits.resize( tcams.size() );
 
     for(int c = 0; c < tcams.size(); c++)
     {
@@ -368,7 +367,7 @@ void SemiGlobalMatchingRc::computeDepthsTcamsLimits(StaticVector<StaticVector<fl
         }
         // clamp to keep only the closest depths if we have too much inputs (> maxDepthsToSweep)
         id2 = std::min(id1 + sp->maxDepthsToSweep - 1, id2);
-        depthsTcamsLimits->push_back(Pixel(id1, id2 - id1 + 1));
+        depthsTcamsLimits[c] = Pixel(id1, id2 - id1 + 1);
     }
 }
 
@@ -475,9 +474,9 @@ void SemiGlobalMatchingRc::computeDepthsAndResetTCams()
     {
         std::string fn = tmpDir + std::to_string(sp->mp->getViewId(rc)) + "depthsTcamsLimits.txt";
         FILE* f = fopen(fn.c_str(), "w");
-        for(int j = 0; j < depthsTcamsLimits->size(); j++)
+        for(int j = 0; j < depthsTcamsLimits.size(); j++)
         {
-            Pixel l = (*depthsTcamsLimits)[j];
+            Pixel l = depthsTcamsLimits[j];
             // fprintf(f,"%f %f\n",(*depths)[l.x],(*depths)[l.x+l.y-1]);
             fprintf(f, "%i %i\n", l.x, l.y);
         }
@@ -536,18 +535,14 @@ void SemiGlobalMatchingRc::computeDepthsAndResetTCams()
     deleteArrayOfArrays<float>(&alldepths);
 }
 
-StaticVector<float>* SemiGlobalMatchingRc::getSubDepthsForTCam(int tcamid)
+void SemiGlobalMatchingRc::getSubDepthsForTCam( int tcamid, std::vector<float>& out )
 {
-    StaticVector<float>* out = new StaticVector<float>();
-    out->reserve((*depthsTcamsLimits)[tcamid].y);
+    out.resize(depthsTcamsLimits[tcamid].y);
 
-    for(int i = (*depthsTcamsLimits)[tcamid].x; i < (*depthsTcamsLimits)[tcamid].x + (*depthsTcamsLimits)[tcamid].y;
-        i++)
+    for(int i = 0; i<depthsTcamsLimits[tcamid].y; i++ )
     {
-        out->push_back((*depths)[i]);
+        out[i] = (*depths)[depthsTcamsLimits[tcamid].x + i];
     }
-
-    return out;
 }
 
 bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
@@ -567,12 +562,10 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
 
     long tall = clock();
 
-    int volDimX = w;
-    int volDimY = h;
-    int volDimZ = depths->size();
+    const int volDimX = w;
+    const int volDimY = h;
+    const int volDimZ = depths->size();
     float volumeMBinGPUMem = 0.0f;
-
-    StaticVector<unsigned char>* simVolume = nullptr;
 
     sp->cps->cameraToDevice( rc, tcams );
 
@@ -585,29 +578,38 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
         sp->cps->getSilhoueteMap(rcSilhoueteMap, scale, step, sp->silhouetteMaskColor, rc);
     }
 
+    std::vector<std::vector<float> > subDepths( tcams.size() );
+    for( int c = 0; c < tcams.size(); c++ )
     {
-        StaticVector<float>* subDepths = getSubDepthsForTCam(0);
-        SemiGlobalMatchingRcTc srt(subDepths, rc, tcams[0], scale, step, sp, rcSilhoueteMap);
-        simVolume = srt.computeDepthSimMapVolume(volumeMBinGPUMem, wsh, gammaC, gammaP);
-        delete subDepths;
+        getSubDepthsForTCam( c, subDepths[c] );
+    }
+
+    std::vector<StaticVector<unsigned char> > simVolume;
+    simVolume.resize( tcams.size() );
+
+    {
+        std::vector<int> index_set( 1 );
+        index_set[0] = 0;
+
+        SemiGlobalMatchingRcTc srt( index_set, subDepths, rc, tcams, scale, step, sp, rcSilhoueteMap);
+        srt.computeDepthSimMapVolume( simVolume, volumeMBinGPUMem, wsh, gammaC, gammaP);
     }
 
     // recompute to all depths
-    volumeMBinGPUMem = ((volumeMBinGPUMem / (float)(*depthsTcamsLimits)[0].y) * (float)volDimZ);
+    volumeMBinGPUMem = ((volumeMBinGPUMem / (float)depthsTcamsLimits[0].y) * (float)volDimZ);
 
     SemiGlobalMatchingVolume* svol = new SemiGlobalMatchingVolume(volumeMBinGPUMem, volDimX, volDimY, volDimZ, sp);
-    svol->copyVolume(simVolume, (*depthsTcamsLimits)[0].x, (*depthsTcamsLimits)[0].y);
-    delete simVolume;
+    svol->copyVolume( simVolume[0], depthsTcamsLimits[0].x, depthsTcamsLimits[0].y);
 
+    std::vector<int> index_set( tcams.size() - 1 );
     for(int c = 1; c < tcams.size(); c++)
     {
-        StaticVector<float>* subDepths = getSubDepthsForTCam(c);
-        SemiGlobalMatchingRcTc srt(subDepths, rc, tcams[c], scale, step, sp, rcSilhoueteMap);
-        simVolume = srt.computeDepthSimMapVolume(volumeMBinGPUMem, wsh, gammaC, gammaP);
-        delete subDepths;
-        svol->addVolumeSecondMin(simVolume,(*depthsTcamsLimits)[c].x,(*depthsTcamsLimits)[c].y);
-        delete simVolume;
+        index_set[c-1] = c;
     }
+
+    SemiGlobalMatchingRcTc srt( index_set, subDepths, rc, tcams, scale, step, sp, rcSilhoueteMap );
+    srt.computeDepthSimMapVolume( simVolume, volumeMBinGPUMem, wsh, gammaC, gammaP );
+    svol->addVolumeSecondMin( index_set, simVolume, depthsTcamsLimits );
 
     // Reduction of 'volume' (X, Y, Z) into 'volumeStepZ' (X, Y, Z/step)
     svol->cloneVolumeSecondStepZ();

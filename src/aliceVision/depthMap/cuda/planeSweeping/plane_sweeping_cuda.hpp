@@ -16,12 +16,14 @@ extern void ps_initCameraMatrix( cameraStructBase& base );
 extern float3 ps_getDeviceMemoryInfo();
 
 float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
-                                      float* ovol_hmh,
+                                      const int max_ct,
+                                      float* volume_out,
+                                      const int volume_offset,
                                       const std::vector<cameraStruct>& cams,
                                       int width, int height,
-                                      int volStepXY, int volDimX, int volDimY, int volDimZ,
-                                      CudaDeviceMemory<float>& depths_dev,
-                                      int nDepthsToSearch,
+                                      int volStepXY, int volDimX, int volDimY,
+                                      std::vector<CudaDeviceMemory<float>*> depths_dev,
+                                      const std::vector<int>& depths_to_search,
                                       int wsh, int kernelSizeHalf,
                                       int scale,
                                       int CUDAdeviceNo, int ncamsAllocated, int scales, bool verbose,

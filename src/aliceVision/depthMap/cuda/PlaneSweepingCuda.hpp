@@ -58,7 +58,7 @@ public:
     // void** ps_texs_arr;
     Pyramid ps_texs_arr;
 
-    std::vector<cameraStructBase> camsBases;
+    cameraStructBase*             camsBasesHst;
     std::vector<cameraStruct>     cams;
     StaticVector<int>             camsRcs;
     StaticVector<long>            camsTimes;
@@ -112,13 +112,18 @@ public:
                             StaticVector<float>* rcDepthMap, int rc, int tc, int scale, int wsh, float gammaC,
                             float gammaP, float epipShift, int xFrom, int wPart);
 
-    float sweepPixelsToVolume(int nDepthsToSearch, StaticVector<float>& volume,
-                              int volDimX, int volDimY, int volDimZ,
-                              int volStepXY,
-                              StaticVector<float>* depths, int rc, int wsh, float gammaC, float gammaP,
-                              StaticVector<Voxel>* pixels, int scale, int step,
+    float sweepPixelsToVolume(const std::vector<int>& index_set,
+                              float* volume, const int volume_offset,
+                              const int volDimX,
+                              const int volDimY,
+                              const int volStepXY,
+                              const std::vector<std::vector<float> >& depths,
+                              int rc,
                               const StaticVector<int>& tcams,
+                              int wsh, float gammaC, float gammaP,
+                              int scale, int step,
                               float epipShift);
+
     bool SGMoptimizeSimVolume(int rc, StaticVector<unsigned char>* volume,
                               int volDimX, int volDimY, int volDimZ,
                               int volStepXY,

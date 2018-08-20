@@ -16,24 +16,35 @@ namespace depthMap {
 class SemiGlobalMatchingRcTc
 {
 public:
-    SemiGlobalMatchingRcTc(StaticVector<float>* _rcTcDepths, int _rc, int _tc, int _scale, int _step, SemiGlobalMatchingParams* _sp,
-                StaticVectorBool* _rcSilhoueteMap = NULL);
+    SemiGlobalMatchingRcTc( const std::vector<int>& index_set,
+                            const std::vector<std::vector<float> >& _rcTcDepths,
+                            int _rc,
+                            const StaticVector<int>& _tc,
+                            int _scale,
+                            int _step,
+                            SemiGlobalMatchingParams* _sp,
+                            StaticVectorBool* _rcSilhoueteMap = NULL );
     ~SemiGlobalMatchingRcTc(void);
 
-    StaticVector<unsigned char>* computeDepthSimMapVolume(float& volumeMBinGPUMem, int wsh, float gammaC, float gammaP);
+    void computeDepthSimMapVolume( std::vector<StaticVector<unsigned char> >& volume,
+                                   float& volumeMBinGPUMem,
+                                   int wsh,
+                                   float gammaC,
+                                   float gammaP );
 
 private:
     StaticVector<Voxel>* getPixels();
 
+    const std::vector<int> index_set;
     const SemiGlobalMatchingParams* const sp;
 
     const int rc;
-    const int tc;
+    const StaticVector<int>& tc;
     const int scale;
     const int step;
     const int w;
     const int h;
-    StaticVector<float>* rcTcDepths;
+    const std::vector<std::vector<float> >& rcTcDepths;
     float epipShift;
     // int w, h;
     StaticVectorBool* rcSilhoueteMap;

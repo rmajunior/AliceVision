@@ -75,6 +75,7 @@ public:
     void resize(int n, T value) { _data.resize(n, value); }
     void resize_with(int n, const T& val) { _data.resize(n, val); }
     void swap( StaticVector& other ) { _data.swap(other._data); }
+    void assign(int n, T value) { _data.assign(n, value); }
 
     void shrink_to_fit()
     {

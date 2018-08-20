@@ -783,13 +783,14 @@ void ps_transposeVolume(CudaHostMemoryHeap<unsigned char, 3>* ovol_hmh,
 
 static void ps_computeSimilarityVolume(
                                 Pyramid& ps_texs_arr,
-                                CudaDeviceMemoryPitched<float, 3>& vol_dmp,
+                                const int max_ct,
+                                std::vector<CudaDeviceMemoryPitched<float, 3>*> vol_dmp,
                                 const std::vector<cameraStruct>& cams,
                                 int width, int height,
                                 int volStepXY,
-                                int volDimX, int volDimY, int volDimZ,
-                                CudaDeviceMemory<float>& depths_dev,
-                                int nDepthsToSearch,
+                                int volDimX, int volDimY,
+                                std::vector<CudaDeviceMemory<float>*> depths_dev,
+                                const std::vector<int>& nDepthsToSearch,
                                 int wsh, int kernelSizeHalf,
                                 int scale,
                                 int CUDAdeviceNo, int ncamsAllocated, int scales, bool verbose, bool doUsePixelsDepths,
@@ -799,124 +800,151 @@ static void ps_computeSimilarityVolume(
     clock_t tall = tic();
     testCUDAdeviceNo(CUDAdeviceNo);
     cudaError_t err;
-    CHECK_CUDA_ERROR();
-
-    if(verbose)
-        printf("nDepths %i, nDepthsToSearch %i \n", (int)depths_dev.getSize(), (int)nDepthsToSearch);
-
-    // setup cameras matrices to the constant memory
-    ps_init_reference_camera_matrices(cams[0].base);
-    CHECK_CUDA_ERROR();
-    err = cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale]->getArray(),
-                           cudaCreateChannelDesc<uchar4>());
-    if( err != cudaSuccess )
+    
+    for( int ct=0; ct<max_ct; ct++ )
     {
-        ALICEVISION_LOG_ERROR( "Failed to bind texture, " << cudaGetErrorString(err) );
-    }
+        const int volDimZ = nDepthsToSearch[ct];
 
-    int c = 1;
-    ps_init_target_camera_matrices(cams[c].base);
-    CHECK_CUDA_ERROR();
-    err = cudaBindTextureToArray(t4tex, ps_texs_arr[cams[c].camId][scale]->getArray(),
+        if(verbose)
+            printf("nDepths %i, nDepthsToSearch %i \n", (int)depths_dev[ct]->getSize(), (int)nDepthsToSearch[ct]);
+
+        // setup cameras matrices to the constant memory
+        ps_init_reference_camera_matrices(cams[0].base);
+        CHECK_CUDA_ERROR();
+        err = cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale]->getArray(),
                            cudaCreateChannelDesc<uchar4>());
-    if( err != cudaSuccess )
-    {
-        ALICEVISION_LOG_ERROR( "Failed to bind texture, " << cudaGetErrorString(err) );
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Failed to bind texture, " << cudaGetErrorString(err) );
+        }
+
+        // int c = 1;
+        ps_init_target_camera_matrices(cams[ct+1].base);
+        CHECK_CUDA_ERROR();
+        err = cudaBindTextureToArray(t4tex, ps_texs_arr[cams[ct+1].camId][scale]->getArray(),
+                           cudaCreateChannelDesc<uchar4>());
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Failed to bind texture, " << cudaGetErrorString(err) );
+        }
+    
+        //--------------------------------------------------------------------------------------------------
+        // init similarity volume
+        configure_init_kernel_2Dfloat();
+
+        /* pitch is always a multiple of 32 bytes (CC 2 and above is at least 128).
+        * Since our elements are int-sized (4 bytes), we can initialize the pitch as well.
+        */
+        const size_t elements        = vol_dmp[ct]->getBytes() / sizeof(float);
+        const int    init_kernel_2Dfloat_grid = divUp( elements, init_kernel_2Dfloat_block.x );
+
+        init_kernel_2Dfloat
+            <<<init_kernel_2Dfloat_grid, init_kernel_2Dfloat_block>>>
+            ( vol_dmp[ct]->getBuffer(),
+            elements,
+            255.0f );
+
+        configure_volume_slice_kernel();
+
+        //--------------------------------------------------------------------------------------------------
+        // compute similarity volume
+        const int xsteps = width / volStepXY;
+        const int ysteps = height / volStepXY;
+
+        dim3 volume_slice_kernel_grid( divUp(xsteps, volume_slice_kernel_block.x),
+                                    divUp(ysteps, volume_slice_kernel_block.y),
+                                    min( (int)depths_dev[ct]->getSize(), volDimZ )
+                                    );
+
+        volume_slice_kernel
+            <<<volume_slice_kernel_grid, volume_slice_kernel_block>>>
+            (
+            depths_dev[ct]->getBuffer(),
+            width, height,
+            wsh,
+            gammaC, gammaP, epipShift,
+            vol_dmp[ct]->getBuffer(), vol_dmp[ct]->stride()[1], vol_dmp[ct]->stride()[0],
+            volStepXY,
+            volDimX, volDimY );
+        CHECK_CUDA_ERROR();
+
+        cudaDeviceSynchronize();
+        cudaUnbindTexture(r4tex);
+        cudaUnbindTexture(t4tex);
     }
-
-    //--------------------------------------------------------------------------------------------------
-    // init similarity volume
-    configure_init_kernel_2Dfloat();
-
-    /* pitch is always a multiple of 32 bytes (CC 2 and above is at least 128).
-     * Since our elements are int-sized (4 bytes), we can initialize the pitch as well.
-     */
-    const size_t elements        = vol_dmp.getBytes() / sizeof(float);
-    const int    init_kernel_2Dfloat_grid = divUp( elements, init_kernel_2Dfloat_block.x );
-
-    init_kernel_2Dfloat
-        <<<init_kernel_2Dfloat_grid, init_kernel_2Dfloat_block>>>
-        ( vol_dmp.getBuffer(),
-          elements,
-          255.0f );
-
-    configure_volume_slice_kernel();
-
-    //--------------------------------------------------------------------------------------------------
-    // compute similarity volume
-    const int xsteps = width / volStepXY;
-    const int ysteps = height / volStepXY;
-
-    dim3 volume_slice_kernel_grid( divUp(xsteps, volume_slice_kernel_block.x),
-                                   divUp(ysteps, volume_slice_kernel_block.y),
-                                   min( (int)depths_dev.getSize(), volDimZ )
-                                 );
-
-    volume_slice_kernel
-        <<<volume_slice_kernel_grid, volume_slice_kernel_block>>>
-        (
-          // nDepthsToSearch,
-          depths_dev.getBuffer(),
-          // depths_dev.getSize(),
-          width, height,
-          wsh,
-          gammaC, gammaP, epipShift,
-          vol_dmp.getBuffer(), vol_dmp.stride()[1], vol_dmp.stride()[0],
-          volStepXY,
-          volDimX, volDimY );
-          // , volDimZ );
-    CHECK_CUDA_ERROR();
-
-    cudaDeviceSynchronize();
-    cudaUnbindTexture(r4tex);
-    cudaUnbindTexture(t4tex);
 
     if(verbose)
         printf("ps_computeSimilarityVolume elapsed time: %f ms \n", toc(tall));
 }
 
 float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
-                                      float* ovol_hmh,
+                                      const int max_ct,
+                                      float* volume_out,
+                                      const int volume_offset,
                                       const std::vector<cameraStruct>& cams,
                                       int width, int height,
-                                      int volStepXY, int volDimX, int volDimY, int volDimZ,
-                                      CudaDeviceMemory<float>& depths_dev,
-                                      int nDepthsToSearch,
+                                      int volStepXY, int volDimX, int volDimY,
+                                      std::vector<CudaDeviceMemory<float>*> depths_dev,
+                                      const std::vector<int>& nDepthsToSearch,
                                       int wsh, int kernelSizeHalf,
                                       int scale,
                                       int CUDAdeviceNo, int ncamsAllocated, int scales, bool verbose,
                                       bool doUsePixelsDepths, int nbest, bool useTcOrRcPixSize, float gammaC,
                                       float gammaP, bool subPixel, float epipShift)
 {
-    testCUDAdeviceNo(CUDAdeviceNo);
+    float retval = 0.0f;
 
-    CudaDeviceMemoryPitched<float, 3> volSim_dmp(CudaSize<3>(volDimX, volDimY, volDimZ));
+    int maxDimZ = *std::max_element( nDepthsToSearch.begin(), nDepthsToSearch.end() );
+
+    std::vector<CudaDeviceMemoryPitched<float, 3>*> volSim_dmp( max_ct );
+    for( int ct=0; ct<max_ct; ct++ )
+    {
+        volSim_dmp[ct] = new CudaDeviceMemoryPitched<float, 3>(CudaSize<3>(volDimX, volDimY, maxDimZ));
+    }
+
+    testCUDAdeviceNo(CUDAdeviceNo);
 
     if(verbose)
         pr_printfDeviceMemoryInfo();
+
     if(verbose)
-        printf("total size of volume map in GPU memory: %f\n", (float)volSim_dmp.getBytes() / (1024.0f * 1024.0f));
+    {
+        for( int ct=0; ct<max_ct; ct++ )
+            printf("total size of volume map in GPU memory: %f\n", (float)volSim_dmp[ct]->getBytes() / (1024.0f * 1024.0f));
+    }
 
     //--------------------------------------------------------------------------------------------------
     // compute similarity volume
-    ps_computeSimilarityVolume(ps_texs_arr, volSim_dmp, cams,
+    ps_computeSimilarityVolume(ps_texs_arr,
+                               max_ct,
+                               volSim_dmp,
+                               cams,
                                width, height,
                                volStepXY,
-                               volDimX, volDimY, volDimZ,
+                               volDimX, volDimY,
                                depths_dev,
                                nDepthsToSearch,
                                wsh, kernelSizeHalf,
                                scale, CUDAdeviceNo, ncamsAllocated, scales,
                                verbose, doUsePixelsDepths, nbest, useTcOrRcPixSize, gammaC, gammaP, subPixel, epipShift);
 
-    //--------------------------------------------------------------------------------------------------
-    // copy to host
-    copy(ovol_hmh, volDimX, volDimY, volDimZ, volSim_dmp);
+    for( int ct=0; ct<max_ct; ct++ )
+    {
+        //--------------------------------------------------------------------------------------------------
+        // copy to host
+        float* ovol_hmh = &volume_out[ct*volume_offset];
+        const int volDimZ = nDepthsToSearch[ct];
+        copy( ovol_hmh, volDimX, volDimY, volDimZ, *volSim_dmp[ct] );
 
-    // pr_printfDeviceMemoryInfo();
-    // printf("total size of volume map in GPU memory: %f\n",(float)d_volSim.getBytes()/(1024.0f*1024.0f));
+        // pr_printfDeviceMemoryInfo();
+        // printf("total size of volume map in GPU memory: %f\n",(float)d_volSim.getBytes()/(1024.0f*1024.0f));
 
-    return (float)volSim_dmp.getBytes() / (1024.0f * 1024.0f);
+        retval = std::max( retval, (float)volSim_dmp[ct]->getBytes() / (1024.0f * 1024.0f) );
+    }
+
+    for( auto ptr : volSim_dmp ) delete ptr;
+
+    return retval;
 }
 
 void ps_filterVisTVolume(CudaHostMemoryHeap<unsigned int, 3>* iovol_hmh, int volDimX, int volDimY, int volDimZ,

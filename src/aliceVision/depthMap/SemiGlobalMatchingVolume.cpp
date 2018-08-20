@@ -203,10 +203,10 @@ StaticVector<IdValue>* SemiGlobalMatchingVolume::getOrigVolumeBestIdValFromVolum
     return volumeBestIdVal;
 }
 
-void SemiGlobalMatchingVolume::copyVolume(const StaticVector<unsigned char>* volume, int zFrom, int nZSteps)
+void SemiGlobalMatchingVolume::copyVolume(const StaticVector<unsigned char>& volume, int zFrom, int nZSteps)
 {
     unsigned char* _volumePtr = _volume->getDataWritable().data();
-    const unsigned char* volumePtr = volume->getData().data();
+    const unsigned char* volumePtr = volume.getData().data();
 #pragma omp parallel for
     for(int z = zFrom; z < zFrom + nZSteps; z++)
     {
@@ -221,6 +221,7 @@ void SemiGlobalMatchingVolume::copyVolume(const StaticVector<unsigned char>* vol
     }
 }
 
+#if 0
 void SemiGlobalMatchingVolume::copyVolume(const StaticVector<int>* volume)
 {
     unsigned char* _volumePtr = _volume->getDataWritable().data();
@@ -238,6 +239,7 @@ void SemiGlobalMatchingVolume::copyVolume(const StaticVector<int>* volume)
         }
     }
 }
+#endif
 
 void SemiGlobalMatchingVolume::addVolumeMin(const StaticVector<unsigned char>* volume, int zFrom, int nZSteps)
 {
@@ -259,11 +261,22 @@ void SemiGlobalMatchingVolume::addVolumeMin(const StaticVector<unsigned char>* v
     }
 }
 
-void SemiGlobalMatchingVolume::addVolumeSecondMin(const StaticVector<unsigned char>* volume, int zFrom, int nZSteps)
+// void addVolumeSecondMin(const StaticVector<unsigned char>& volume, int zFrom, int nZSteps);
+void SemiGlobalMatchingVolume::addVolumeSecondMin(
+            const std::vector<int>& index_set, 
+            const std::vector<StaticVector<unsigned char> >& vols,
+            StaticVector<Pixel> z )
+
 {
+  for( auto i : index_set )
+  {
+    const StaticVector<unsigned char>& volume = vols[i];
+    const int zFrom   = z[i].x;
+    const int nZSteps = z[i].y;
+
     unsigned char* _volumePtr = _volume->getDataWritable().data();
     unsigned char* _volumeSecondBestPtr = _volumeSecondBest->getDataWritable().data();
-    const unsigned char* volumePtr = volume->getData().data();
+    const unsigned char* volumePtr = volume.getData().data();
 #pragma omp parallel for
     for(int z = zFrom; z < zFrom + nZSteps; z++)
     {
@@ -288,6 +301,7 @@ void SemiGlobalMatchingVolume::addVolumeSecondMin(const StaticVector<unsigned ch
             }
         }
     }
+  }
 }
 
 void SemiGlobalMatchingVolume::addVolumeAvg(int n, const StaticVector<unsigned char>* volume, int zFrom, int nZSteps)

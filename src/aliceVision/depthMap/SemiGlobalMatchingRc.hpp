@@ -36,8 +36,10 @@ protected:
     void computeDepths(float minDepth, float maxDepth, StaticVector<StaticVector<float>*>* alldepths);
     void computeDepthsAndResetTCams();
 
-    StaticVector<float>* getSubDepthsForTCam(int tcamid);
+private:
+    void getSubDepthsForTCam( int tcamid, std::vector<float>& subDepths );
 
+protected:
     SemiGlobalMatchingParams* sp;
 
     const int rc;
@@ -46,7 +48,7 @@ protected:
     int wsh;
     float gammaC, gammaP;
     StaticVector<float>* depths;
-    StaticVector<Pixel>* depthsTcamsLimits;
+    StaticVector<Pixel> depthsTcamsLimits;
     int w, h;
 
     std::string outDir;

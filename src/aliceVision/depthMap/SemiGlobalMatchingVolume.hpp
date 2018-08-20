@@ -18,10 +18,13 @@ public:
     SemiGlobalMatchingVolume(float _volGpuMB, int _volDimX, int _volDimY, int _volDimZ, SemiGlobalMatchingParams* _sp);
     ~SemiGlobalMatchingVolume(void);
 
-    void copyVolume(const StaticVector<int>* volume);
-    void copyVolume(const StaticVector<unsigned char>* volume, int zFrom, int nZSteps);
+    // void copyVolume(const StaticVector<int>* volume);
+    void copyVolume(const StaticVector<unsigned char>& volume, int zFrom, int nZSteps);
     void addVolumeMin(const StaticVector<unsigned char>* volume, int zFrom, int nZSteps);
-    void addVolumeSecondMin(const StaticVector<unsigned char>* volume, int zFrom, int nZSteps);
+    // void addVolumeSecondMin(const StaticVector<unsigned char>& volume, int zFrom, int nZSteps);
+    void addVolumeSecondMin( const std::vector<int>& index_set, 
+                             const std::vector<StaticVector<unsigned char> >& vols,
+                             StaticVector<Pixel> z );
     void addVolumeAvg(int n, const StaticVector<unsigned char>* volume, int zFrom, int nZSteps);
 
     void cloneVolumeStepZ();
