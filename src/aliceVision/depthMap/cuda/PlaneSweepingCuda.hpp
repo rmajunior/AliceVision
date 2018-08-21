@@ -48,13 +48,13 @@ public:
         }
     };
 
-    int scales;
-    int nbest;
+    const int _scales;
+    const int _nbest; // == 1
 
     mvsUtils::MultiViewParams* mp;
     mvsUtils::PreMatchCams* pc;
 
-    int CUDADeviceNo;
+    const int _CUDADeviceNo;
     // void** ps_texs_arr;
     Pyramid ps_texs_arr;
 
@@ -63,22 +63,22 @@ public:
     StaticVector<int>             camsRcs;
     StaticVector<long>            camsTimes;
 
-    bool verbose;
+    const bool _verbose;
     bool doVizualizePartialDepthMaps;
-    int nbestkernelSizeHalf;
+    const int  _nbestkernelSizeHalf;
 
     bool useRcDepthsOrRcTcDepths;
-    int minSegSize;
+    int  minSegSize;
     bool useSeg;
-    int nImgsInGPUAtTime;
+    int  _nImgsInGPUAtTime;
     bool subPixel;
-    int varianceWSH;
+    int  varianceWSH;
 
     // float gammaC,gammaP;
     mvsUtils::ImagesCache* ic;
 
-    PlaneSweepingCuda(int _CUDADeviceNo, mvsUtils::ImagesCache* _ic, mvsUtils::MultiViewParams* _mp, mvsUtils::PreMatchCams* _pc,
-                        int _scales);
+    PlaneSweepingCuda(int CUDADeviceNo, mvsUtils::ImagesCache* _ic, mvsUtils::MultiViewParams* _mp, mvsUtils::PreMatchCams* _pc,
+                        int scales);
     ~PlaneSweepingCuda(void);
 
     void cameraToDevice( int rc, const StaticVector<int>& tcams );

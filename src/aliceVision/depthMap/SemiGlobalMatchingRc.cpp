@@ -47,7 +47,7 @@ SemiGlobalMatchingRc::SemiGlobalMatchingRc(bool doComputeDepthsAndResetTCams, in
     gammaC = (float)sp->mp->_ini.get<double>("semiGlobalMatching.gammaC", 5.5);
     gammaP = (float)sp->mp->_ini.get<double>("semiGlobalMatching.gammaP", 8.0);
 
-    sp->cps->verbose = sp->mp->verbose;
+    // sp->cps->verbose = sp->mp->verbose; - already set in PlaneSweeping class constructor
 
     const IndexT viewId = sp->mp->getViewId(rc);
 
