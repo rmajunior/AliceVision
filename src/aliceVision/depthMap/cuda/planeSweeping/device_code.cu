@@ -176,82 +176,82 @@ __device__ float move3DPointByTcOrRcPixStep(int2& pix, float3& p, float pixStep,
     }
 }
 
-__device__ void computePatch(patch& ptch, int depthid, int ndepths, int2& pix, int pixid, int t, bool doUsePixelsDepths,
-                             bool useTcOrRcPixSize)
-{
-    float3 p;
-    float pixSize;
+// __device__ void computePatch(patch& ptch, int depthid, int ndepths, int2& pix, int pixid, int t, bool doUsePixelsDepths,
+//                              bool useTcOrRcPixSize)
+// {
+//     float3 p;
+//     float pixSize;
+// 
+//     if(doUsePixelsDepths == true)
+//     {
+//         float depth = tex2D(depthsTex, pixid, t);
+//         float2 rp = make_float2((float)pix.x, (float)pix.y);
+//         float3 rpv = M3x3mulV2(sg_s_r.iP, rp);
+//         normalize(rpv);
+// 
+//         float3 prp = sg_s_r.C + rpv * depth;
+// 
+//         pixSize = computePixSize(prp);
+// 
+//         float jump = (float)(depthid - ((ndepths - 1) / 2));
+// 
+//         if(useTcOrRcPixSize == true)
+//         {
+//             move3DPointByTcPixStep(prp, jump);
+//             p = prp;
+// 
+//             /*
+//             float3 prp1 = sg_s_r.C+rpv*depth*0.5f;
+//             float2 tpo; getPixelFor3DPointTC(tpo, prp);
+//             float2 tpv; getPixelFor3DPointTC(tpv, prp1);
+//             tpv = tpv-tpo; normalize(tpv);
+//             //tpv = tpv/2.0f;
+//             float2 tpd = tpo + tpv*jump;
+//             p = triangulateMatchRef(rp,tpd);
+//             */
+//         }
+//         else
+//         {
+//             p = sg_s_r.C + rpv * (depth + pixSize * jump);
+//         }
+//     }
+//     else
+//     {
+//         float fpPlaneDepth = tex2D(depthsTex, depthid, 0);
+//         p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth);
+// 
+//         pixSize = computePixSize(p);
+//     }
+// 
+//     ptch.p = p;
+//     ptch.d = pixSize;
+// 
+//     computeRotCSEpip(ptch, p);
+// }
 
-    if(doUsePixelsDepths == true)
-    {
-        float depth = tex2D(depthsTex, pixid, t);
-        float2 rp = make_float2((float)pix.x, (float)pix.y);
-        float3 rpv = M3x3mulV2(sg_s_r.iP, rp);
-        normalize(rpv);
-
-        float3 prp = sg_s_r.C + rpv * depth;
-
-        pixSize = computePixSize(prp);
-
-        float jump = (float)(depthid - ((ndepths - 1) / 2));
-
-        if(useTcOrRcPixSize == true)
-        {
-            move3DPointByTcPixStep(prp, jump);
-            p = prp;
-
-            /*
-            float3 prp1 = sg_s_r.C+rpv*depth*0.5f;
-            float2 tpo; getPixelFor3DPointTC(tpo, prp);
-            float2 tpv; getPixelFor3DPointTC(tpv, prp1);
-            tpv = tpv-tpo; normalize(tpv);
-            //tpv = tpv/2.0f;
-            float2 tpd = tpo + tpv*jump;
-            p = triangulateMatchRef(rp,tpd);
-            */
-        }
-        else
-        {
-            p = sg_s_r.C + rpv * (depth + pixSize * jump);
-        }
-    }
-    else
-    {
-        float fpPlaneDepth = tex2D(depthsTex, depthid, 0);
-        p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth);
-
-        pixSize = computePixSize(p);
-    }
-
-    ptch.p = p;
-    ptch.d = pixSize;
-
-    computeRotCSEpip(ptch, p);
-}
-
-__global__ void slice_kernel(float* slice, int slice_p,
-                             // float3* slicePts, int slicePts_p,
-                             int ndepths, int slicesAtTime,
-                             int width, int height, int wsh, int t, int npixs,
-                             int maxDepth,
-                             bool doUsePixelsDepths, bool useTcOrRcPixSize, const float gammaC, const float gammaP,
-                             const float epipShift)
-{
-    int depthid = blockIdx.x * blockDim.x + threadIdx.x;
-    int pixid = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if((depthid < ndepths) && (pixid < slicesAtTime) && (slicesAtTime * t + pixid < npixs))
-    {
-        int2 pix = tex2D(pixsTex, pixid, t);
-        patch ptcho;
-        computePatch(ptcho, depthid, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
-
-        float sim = compNCCby3DptsYK(ptcho, wsh, width, height, gammaC, gammaP, epipShift);
-
-        // coalescent
-        *get2DBufferAt(slice, slice_p, depthid, pixid) = sim;
-    }
-}
+// __global__ void slice_kernel(float* slice, int slice_p,
+//                              // float3* slicePts, int slicePts_p,
+//                              int ndepths, int slicesAtTime,
+//                              int width, int height, int wsh, int t, int npixs,
+//                              int maxDepth,
+//                              bool doUsePixelsDepths, bool useTcOrRcPixSize, const float gammaC, const float gammaP,
+//                              const float epipShift)
+// {
+//     int depthid = blockIdx.x * blockDim.x + threadIdx.x;
+//     int pixid = blockIdx.y * blockDim.y + threadIdx.y;
+// 
+//     if((depthid < ndepths) && (pixid < slicesAtTime) && (slicesAtTime * t + pixid < npixs))
+//     {
+//         int2 pix = tex2D(pixsTex, pixid, t);
+//         patch ptcho;
+//         computePatch(ptcho, depthid, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
+// 
+//         float sim = compNCCby3DptsYK(ptcho, wsh, width, height, gammaC, gammaP, epipShift);
+// 
+//         // coalescent
+//         *get2DBufferAt(slice, slice_p, depthid, pixid) = sim;
+//     }
+// }
 
 __device__ float3 computeDepthPoint_fine(float& pixSize, int depthid, int ndepths, int2& pix, int pixid, int t)
 {
@@ -268,36 +268,36 @@ __device__ float3 computeDepthPoint_fine(float& pixSize, int depthid, int ndepth
     return sg_s_r.C + rpv * (depth + pixSize * jump);
 }
 
-__global__ void slice_fine_kernel(float* slice, int slice_p,
-                                  int ndepths, int slicesAtTime,
-                                  int width, int height, int wsh, int t, int npixs,
-                                  int maxDepth, const float gammaC, const float gammaP, const float epipShift)
-{
-    int depthid = blockIdx.x * blockDim.x + threadIdx.x;
-    int pixid = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if((depthid < ndepths) && (pixid < slicesAtTime) && (slicesAtTime * t + pixid < npixs))
-    {
-        int2 pix = tex2D(pixsTex, pixid, t);
-        float4 normal = tex2D(normalsTex, pixid, t);
-        float pixSize;
-        float3 p = computeDepthPoint_fine(pixSize, depthid, ndepths, pix, pixid, t);
-
-        patch ptcho;
-        ptcho.p = p;
-        ptcho.n.x = normal.x;
-        ptcho.n.y = normal.y;
-        ptcho.n.z = normal.z;
-        ptcho.d = pixSize;
-        computeRotCS(ptcho.x, ptcho.y, ptcho.n);
-        // float sim = compNCCby3DptsSeg(ptcho, wsh);
-        // float sim = compNCCby3Dpts(ptcho, wsh);
-        float sim = compNCCby3DptsYK(ptcho, wsh, width, height, gammaC, gammaP, epipShift);
-        // coalescent
-        int sliceid = pixid * slice_p + depthid;
-        slice[sliceid] = sim;
-    }
-}
+// __global__ void slice_fine_kernel(float* slice, int slice_p,
+//                                   int ndepths, int slicesAtTime,
+//                                   int width, int height, int wsh, int t, int npixs,
+//                                   int maxDepth, const float gammaC, const float gammaP, const float epipShift)
+// {
+//     int depthid = blockIdx.x * blockDim.x + threadIdx.x;
+//     int pixid = blockIdx.y * blockDim.y + threadIdx.y;
+// 
+//     if((depthid < ndepths) && (pixid < slicesAtTime) && (slicesAtTime * t + pixid < npixs))
+//     {
+//         int2 pix = tex2D(pixsTex, pixid, t);
+//         float4 normal = tex2D(normalsTex, pixid, t);
+//         float pixSize;
+//         float3 p = computeDepthPoint_fine(pixSize, depthid, ndepths, pix, pixid, t);
+// 
+//         patch ptcho;
+//         ptcho.p = p;
+//         ptcho.n.x = normal.x;
+//         ptcho.n.y = normal.y;
+//         ptcho.n.z = normal.z;
+//         ptcho.d = pixSize;
+//         computeRotCS(ptcho.x, ptcho.y, ptcho.n);
+//         // float sim = compNCCby3DptsSeg(ptcho, wsh);
+//         // float sim = compNCCby3Dpts(ptcho, wsh);
+//         float sim = compNCCby3DptsYK(ptcho, wsh, width, height, gammaC, gammaP, epipShift);
+//         // coalescent
+//         int sliceid = pixid * slice_p + depthid;
+//         slice[sliceid] = sim;
+//     }
+// }
 
 // __global__ void smoothDepthMap_kernel(
 //     float* dmap, int dmap_p,
@@ -527,163 +527,163 @@ __global__ void locmin_kernel(float* slice, int slice_p, int ndepths, int slices
     }
 }
 
-__global__ void getBest_kernel(float* slice, int slice_p,
-                               // int* bestDptId, int bestDptId_p,
-                               float* bestDpt, int bestDpt_p,
-                               float* bestSim, int bestSim_p,
-                               int slicesAtTime, int ndepths, int t, int npixs,
-                               int wsh, int width, int height, bool doUsePixelsDepths, int nbest, bool useTcOrRcPixSize,
-                               bool subPixel)
-{
-    int pixid = blockIdx.x * blockDim.x + threadIdx.x;
-    if((pixid < slicesAtTime) && (slicesAtTime * t + pixid < npixs))
-    {
-        float gminSim = -1.1f;
-        for(int bestid = 0; bestid < nbest; bestid++)
-        {
-            float minSim = 1.0f;
-            int minDepthId = 0;
-            for(int depthid = 0; depthid < ndepths; depthid++)
-            {
-                // float sim = slice[pixid*slice_p+depthid];
-                float sim = tex2D(sliceTex, depthid, pixid);
-                if((sim < minSim) && (sim > gminSim))
-                {
-                    minSim = sim;
-                    minDepthId = depthid;
-                }
-            }
+// __global__ void getBest_kernel(float* slice, int slice_p,
+//                                // int* bestDptId, int bestDptId_p,
+//                                float* bestDpt, int bestDpt_p,
+//                                float* bestSim, int bestSim_p,
+//                                int slicesAtTime, int ndepths, int t, int npixs,
+//                                int wsh, int width, int height, bool doUsePixelsDepths, int nbest, bool useTcOrRcPixSize,
+//                                bool subPixel)
+// {
+//     int pixid = blockIdx.x * blockDim.x + threadIdx.x;
+//     if((pixid < slicesAtTime) && (slicesAtTime * t + pixid < npixs))
+//     {
+//         float gminSim = -1.1f;
+//         for(int bestid = 0; bestid < nbest; bestid++)
+//         {
+//             float minSim = 1.0f;
+//             int minDepthId = 0;
+//             for(int depthid = 0; depthid < ndepths; depthid++)
+//             {
+//                 // float sim = slice[pixid*slice_p+depthid];
+//                 float sim = tex2D(sliceTex, depthid, pixid);
+//                 if((sim < minSim) && (sim > gminSim))
+//                 {
+//                     minSim = sim;
+//                     minDepthId = depthid;
+//                 }
+//             }
+// 
+//             int2 pix = tex2D(pixsTex, pixid, t);
+//             patch ptcho;
+//             computePatch(ptcho, minDepthId, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
+// 
+//             float3 p = ptcho.p;
+//             float floatDepth = size(p - sg_s_r.C);
+//             float outDepth = floatDepth;
+//             float outSim = minSim;
+//             // float outDepth = -1.0f;
+//             // float outSim   = 1.0f;
+//             // subpixel refienement
+//             if((subPixel == true) && (minDepthId > 0) && (minDepthId < ndepths - 1))
+//             {
+//                 float3 depths;
+//                 computePatch(ptcho, minDepthId - 1, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
+// 
+//                 p = ptcho.p;
+// 
+//                 depths.x = size(p - sg_s_r.C);
+//                 depths.y = floatDepth;
+// 
+//                 computePatch(ptcho, minDepthId + 1, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
+// 
+//                 p = ptcho.p;
+// 
+//                 depths.z = size(p - sg_s_r.C);
+// 
+//                 float3 sims;
+//                 sims.x = tex2D(sliceTex, minDepthId - 1, pixid);
+//                 sims.y = minSim;
+//                 sims.z = tex2D(sliceTex, minDepthId + 1, pixid);
+// 
+//                 float refinedDepth = refineDepthSubPixel(depths, sims);
+// 
+//                 if(refinedDepth > 0.0f)
+//                 {
+//                     floatDepth = refinedDepth;
+//                     outDepth = refinedDepth;
+//                 }
+//             }
+//             float* depth = get2DBufferAt(bestDpt, bestDpt_p, slicesAtTime * t + pixid, bestid);
+//             float* sim = get2DBufferAt(bestSim, bestSim_p, slicesAtTime * t + pixid, bestid);
+//             *depth = outDepth;
+//             *sim = outSim;
+// 
+//             gminSim = minSim;
+//         }
+//     }
+// }
 
-            int2 pix = tex2D(pixsTex, pixid, t);
-            patch ptcho;
-            computePatch(ptcho, minDepthId, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
-
-            float3 p = ptcho.p;
-            float floatDepth = size(p - sg_s_r.C);
-            float outDepth = floatDepth;
-            float outSim = minSim;
-            // float outDepth = -1.0f;
-            // float outSim   = 1.0f;
-            // subpixel refienement
-            if((subPixel == true) && (minDepthId > 0) && (minDepthId < ndepths - 1))
-            {
-                float3 depths;
-                computePatch(ptcho, minDepthId - 1, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
-
-                p = ptcho.p;
-
-                depths.x = size(p - sg_s_r.C);
-                depths.y = floatDepth;
-
-                computePatch(ptcho, minDepthId + 1, ndepths, pix, pixid, t, doUsePixelsDepths, useTcOrRcPixSize);
-
-                p = ptcho.p;
-
-                depths.z = size(p - sg_s_r.C);
-
-                float3 sims;
-                sims.x = tex2D(sliceTex, minDepthId - 1, pixid);
-                sims.y = minSim;
-                sims.z = tex2D(sliceTex, minDepthId + 1, pixid);
-
-                float refinedDepth = refineDepthSubPixel(depths, sims);
-
-                if(refinedDepth > 0.0f)
-                {
-                    floatDepth = refinedDepth;
-                    outDepth = refinedDepth;
-                }
-            }
-            float* depth = get2DBufferAt(bestDpt, bestDpt_p, slicesAtTime * t + pixid, bestid);
-            float* sim = get2DBufferAt(bestSim, bestSim_p, slicesAtTime * t + pixid, bestid);
-            *depth = outDepth;
-            *sim = outSim;
-
-            gminSim = minSim;
-        }
-    }
-}
-
-__global__ void getBest_fine_kernel(float* slice, int slice_p,
-                                    // int* bestDptId, int bestDptId_p,
-                                    float* bestDpt, int bestDpt_p,
-                                    float* bestSim, int bestSim_p,
-                                    int slicesAtTime, int ndepths, int t, int npixs,
-                                    int wsh, int width, int height)
-{
-    int pixid = blockIdx.x * blockDim.x + threadIdx.x;
-    if((pixid < slicesAtTime) && (slicesAtTime * t + pixid < npixs))
-    {
-        float minSim = 1.0f;
-        int minDepthId = 0;
-
-        for(int depthid = 0; depthid < ndepths; depthid++)
-        {
-            float sim = tex2D(sliceTex, depthid, pixid);
-            if(sim < minSim)
-            {
-                minSim = sim;
-                minDepthId = depthid;
-            }
-        }
-
-        int2 pix = tex2D(pixsTex, pixid, t);
-        float pixSize;
-        float3 p = computeDepthPoint_fine(pixSize, minDepthId, ndepths, pix, pixid, t);
-        float floatDepth = size(p - sg_s_r.C);
-        float outDepth = floatDepth;
-        float outSim = minSim;
-        // float outDepth = -1.0f;
-        // float outSim   = 1.0f;
-        // subpixel refienement
-
-        if((minDepthId > 0) && (minDepthId < ndepths - 1))
-        {
-            // subpixel refine by Stereo Matching with Color-Weighted Correlation, Hierarchical BeliefPropagation, and
-            // Occlusion Handling Qingxiong pami08
-
-            // quadratic polynomial interpolation is used to approximate the cost function between three discrete depth
-            // candidates: d, dA, and dB.
-            // TODO: get formula back from paper as it has been lost by encoding.
-            // d is the discrete depth with the minimal cost, d? ? d ? 1, and d? ? d ? 1. The cost function is approximated as
-            // f?x? ? ax2 ? bx ? c
-
-            float simM1 = tex2D(sliceTex, minDepthId - 1, pixid);
-            float simP1 = tex2D(sliceTex, minDepthId + 1, pixid);
-            float sim1 = minSim;
-            simM1 = (simM1 + 1.0f) / 2.0f;
-            simP1 = (simP1 + 1.0f) / 2.0f;
-            sim1 = (sim1 + 1.0f) / 2.0f;
-
-            if((simM1 > sim1) && (simP1 > sim1))
-            {
-                float dispStep = -((simP1 - simM1) / (2.0f * (simP1 + simM1 - 2.0f * sim1)));
-                p = computeDepthPoint_fine(pixSize, minDepthId - 1, ndepths, pix, pixid, t);
-                float floatDepthM1 = size(p - sg_s_r.C);
-                p = computeDepthPoint_fine(pixSize, minDepthId + 1, ndepths, pix, pixid, t);
-                float floatDepthP1 = size(p - sg_s_r.C);
-                //-1 : floatDepthM1
-                // 0 : floatDepth
-                //+1 : floatDepthP1
-                // linear function fit
-                // f(x)=a*x+b
-                // floatDepthM1=-a+b
-                // floatDepthP1= a+b
-                // a = b - floatDepthM1
-                // floatDepthP1=2*b-floatDepthM1
-                float b = (floatDepthP1 + floatDepthM1) / 2.0f;
-                float a = b - floatDepthM1;
-                floatDepth = a * dispStep + b;
-                outDepth = floatDepth;
-                outSim = minSim;
-            }
-        }
-
-        assert(false); // TODO: get2DBufferAt
-        bestDpt[slicesAtTime * t + pixid] = outDepth;
-        bestSim[slicesAtTime * t + pixid] = outSim;
-    }
-}
+// __global__ void getBest_fine_kernel(float* slice, int slice_p,
+//                                     // int* bestDptId, int bestDptId_p,
+//                                     float* bestDpt, int bestDpt_p,
+//                                     float* bestSim, int bestSim_p,
+//                                     int slicesAtTime, int ndepths, int t, int npixs,
+//                                     int wsh, int width, int height)
+// {
+//     int pixid = blockIdx.x * blockDim.x + threadIdx.x;
+//     if((pixid < slicesAtTime) && (slicesAtTime * t + pixid < npixs))
+//     {
+//         float minSim = 1.0f;
+//         int minDepthId = 0;
+// 
+//         for(int depthid = 0; depthid < ndepths; depthid++)
+//         {
+//             float sim = tex2D(sliceTex, depthid, pixid);
+//             if(sim < minSim)
+//             {
+//                 minSim = sim;
+//                 minDepthId = depthid;
+//             }
+//         }
+// 
+//         int2 pix = tex2D(pixsTex, pixid, t);
+//         float pixSize;
+//         float3 p = computeDepthPoint_fine(pixSize, minDepthId, ndepths, pix, pixid, t);
+//         float floatDepth = size(p - sg_s_r.C);
+//         float outDepth = floatDepth;
+//         float outSim = minSim;
+//         // float outDepth = -1.0f;
+//         // float outSim   = 1.0f;
+//         // subpixel refienement
+// 
+//         if((minDepthId > 0) && (minDepthId < ndepths - 1))
+//         {
+//             // subpixel refine by Stereo Matching with Color-Weighted Correlation, Hierarchical BeliefPropagation, and
+//             // Occlusion Handling Qingxiong pami08
+// 
+//             // quadratic polynomial interpolation is used to approximate the cost function between three discrete depth
+//             // candidates: d, dA, and dB.
+//             // TODO: get formula back from paper as it has been lost by encoding.
+//             // d is the discrete depth with the minimal cost, d? ? d ? 1, and d? ? d ? 1. The cost function is approximated as
+//             // f?x? ? ax2 ? bx ? c
+// 
+//             float simM1 = tex2D(sliceTex, minDepthId - 1, pixid);
+//             float simP1 = tex2D(sliceTex, minDepthId + 1, pixid);
+//             float sim1 = minSim;
+//             simM1 = (simM1 + 1.0f) / 2.0f;
+//             simP1 = (simP1 + 1.0f) / 2.0f;
+//             sim1 = (sim1 + 1.0f) / 2.0f;
+// 
+//             if((simM1 > sim1) && (simP1 > sim1))
+//             {
+//                 float dispStep = -((simP1 - simM1) / (2.0f * (simP1 + simM1 - 2.0f * sim1)));
+//                 p = computeDepthPoint_fine(pixSize, minDepthId - 1, ndepths, pix, pixid, t);
+//                 float floatDepthM1 = size(p - sg_s_r.C);
+//                 p = computeDepthPoint_fine(pixSize, minDepthId + 1, ndepths, pix, pixid, t);
+//                 float floatDepthP1 = size(p - sg_s_r.C);
+//                 //-1 : floatDepthM1
+//                 // 0 : floatDepth
+//                 //+1 : floatDepthP1
+//                 // linear function fit
+//                 // f(x)=a*x+b
+//                 // floatDepthM1=-a+b
+//                 // floatDepthP1= a+b
+//                 // a = b - floatDepthM1
+//                 // floatDepthP1=2*b-floatDepthM1
+//                 float b = (floatDepthP1 + floatDepthM1) / 2.0f;
+//                 float a = b - floatDepthM1;
+//                 floatDepth = a * dispStep + b;
+//                 outDepth = floatDepth;
+//                 outSim = minSim;
+//             }
+//         }
+// 
+//         assert(false); // TODO: get2DBufferAt
+//         bestDpt[slicesAtTime * t + pixid] = outDepth;
+//         bestSim[slicesAtTime * t + pixid] = outSim;
+//     }
+// }
 
 __device__ float2 computeMagRot(float l, float r, float u, float d)
 {
@@ -1296,25 +1296,25 @@ __global__ void getSilhoueteMap_kernel(bool* out, int out_p, int step, int width
 //     }
 // }
 
-__global__ void retextureComputeNormalMap_kernel(
-    uchar4* out, int out_p,
-    float2* retexturePixs, int retexturePixs_p,
-    float3* retexturePixsNorms, int retexturePixsNorms_p,
-    int width, int height, int npixs)
-{
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if((x < width) && (y < height) && (y * width + x < npixs))
-    {
-        float2 objPix = *get2DBufferAt(retexturePixs, retexturePixs_p, x, y);
-        float3 objPixNorm = *get2DBufferAt(retexturePixsNorms, retexturePixsNorms_p, x, y);
-        *get2DBufferAt(out, out_p, objPix.x, objPix.y) =
-            make_uchar4((unsigned char)(objPixNorm.x * 127.0f + 128.0f),
-                        (unsigned char)(objPixNorm.y * 127.0f + 128.0f),
-                        (unsigned char)(objPixNorm.z * 127.0f + 128.0f), 0);
-    }
-}
+// __global__ void retextureComputeNormalMap_kernel(
+//     uchar4* out, int out_p,
+//     float2* retexturePixs, int retexturePixs_p,
+//     float3* retexturePixsNorms, int retexturePixsNorms_p,
+//     int width, int height, int npixs)
+// {
+//     int x = blockIdx.x * blockDim.x + threadIdx.x;
+//     int y = blockIdx.y * blockDim.y + threadIdx.y;
+// 
+//     if((x < width) && (y < height) && (y * width + x < npixs))
+//     {
+//         float2 objPix = *get2DBufferAt(retexturePixs, retexturePixs_p, x, y);
+//         float3 objPixNorm = *get2DBufferAt(retexturePixsNorms, retexturePixsNorms_p, x, y);
+//         *get2DBufferAt(out, out_p, objPix.x, objPix.y) =
+//             make_uchar4((unsigned char)(objPixNorm.x * 127.0f + 128.0f),
+//                         (unsigned char)(objPixNorm.y * 127.0f + 128.0f),
+//                         (unsigned char)(objPixNorm.z * 127.0f + 128.0f), 0);
+//     }
+// }
 
 // __global__ void pushPull_Push_kernel(uchar4* out, int out_p, int width, int height)
 // {

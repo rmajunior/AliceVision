@@ -7,22 +7,27 @@
 namespace aliceVision {
 namespace depthMap {
 
-inline __device__ void volume_computePatch( patch& ptch, const float fpPlaneDepth, const int2& pix)
+inline __device__ void volume_computePatch( const cameraStructBase* rc_cam_s,
+                                            const cameraStructBase* tc_cam_s,
+                                            patch& ptch,
+                                            const float fpPlaneDepth, const int2& pix )
 {
     float3 p;
     float pixSize;
 
-    p = get3DPointForPixelAndFrontoParellePlaneRC(pix, fpPlaneDepth); // no texture use
-    pixSize = computePixSize(p); // no texture use
+    p = get3DPointForPixelAndFrontoParellePlaneRC( rc_cam_s, pix, fpPlaneDepth); // no texture use
+    pixSize = computePixSize( rc_cam_s, p ); // no texture use
 
     ptch.p = p;
     ptch.d = pixSize;
-    computeRotCSEpip(ptch, p); // no texture use
+    computeRotCSEpip( rc_cam_s, tc_cam_s, ptch, p ); // no texture use
 }
 
 __global__ void volume_slice_kernel(
                                     cudaTextureObject_t rc_tex,
                                     cudaTextureObject_t tc_tex,
+                                    const cameraStructBase* rc_cam_s,
+                                    const cameraStructBase* tc_cam_s,
                                     float* depths_dev,
                                     int width, int height, int wsh,
                                     const float gammaC, const float gammaP, const float epipShift,
@@ -52,9 +57,14 @@ __global__ void volume_slice_kernel(
     const int2 pix = make_int2( x, y );
 
     patch ptcho;
-    volume_computePatch(ptcho, fpPlaneDepth, pix); // no texture use
+    volume_computePatch( rc_cam_s, tc_cam_s, ptcho, fpPlaneDepth, pix); // no texture use
 
-    float fsim = compNCCby3DptsYK(rc_tex, tc_tex, ptcho, wsh, width, height, gammaC, gammaP, epipShift);
+    float fsim = compNCCby3DptsYK( rc_tex, tc_tex,
+                                   rc_cam_s, tc_cam_s,
+                                   ptcho, wsh,
+                                   width, height,
+                                   gammaC, gammaP,
+                                   epipShift);
 
     const float fminVal = -1.0f;
     const float fmaxVal = 1.0f;

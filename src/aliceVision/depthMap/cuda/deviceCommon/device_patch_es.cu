@@ -16,7 +16,37 @@
 namespace aliceVision {
 namespace depthMap {
 
-__device__ void computeRotCSEpip(patch& ptch, const float3& p)
+__device__ void computeRotCSEpip( const cameraStructBase* rc_cam_s,
+                                  const cameraStructBase* tc_cam_s,
+                                  patch& ptch,
+                                  const float3& p )
+{
+    ptch.p = p;
+
+    // Vector from the reference camera to the 3d point
+    float3 v1 = rc_cam_s->C - p;
+    // Vector from the target camera to the 3d point
+    float3 v2 = tc_cam_s->C - p;
+    normalize(v1);
+    normalize(v2);
+
+    // y has to be ortogonal to the epipolar plane
+    // n has to be on the epipolar plane
+    // x has to be on the epipolar plane
+
+    ptch.y = cross(v1, v2);
+    normalize(ptch.y);
+
+    ptch.n = (v1 + v2) / 2.0f; // IMPORTANT !!!
+    normalize(ptch.n);
+    // ptch.n = sg_s_r.ZVect; //IMPORTANT !!!
+
+    ptch.x = cross(ptch.y, ptch.n);
+    normalize(ptch.x);
+}
+
+__device__ void computeRotCSEpip( patch& ptch,
+                                  const float3& p )
 {
     ptch.p = p;
 
@@ -278,15 +308,21 @@ __device__ float compNCCbyH(patch& ptch, int wsh)
  * 
  * @return similarity value
  */
-__device__ float compNCCby3DptsYK(cudaTextureObject_t rc_tex, cudaTextureObject_t tc_tex, patch& ptch, int wsh, int width, int height, const float _gammaC, const float _gammaP,
-                                  const float epipShift)
+__device__ float compNCCby3DptsYK( cudaTextureObject_t rc_tex,
+                                   cudaTextureObject_t tc_tex,
+                                   const cameraStructBase* rc_cam_s,
+                                   const cameraStructBase* tc_cam_s,
+                                   patch& ptch,
+                                   int wsh, int width, int height,
+                                   const float _gammaC, const float _gammaP,
+                                   const float epipShift )
 {
     float3 p = ptch.p;
-    float2 rp = project3DPoint(sg_s_r.P, p);
-    float2 tp = project3DPoint(sg_s_t.P, p);
+    float2 rp = project3DPoint(rc_cam_s->P, p);
+    float2 tp = project3DPoint(tc_cam_s->P, p);
 
     float3 pUp = p + ptch.y * (ptch.d * 10.0f); // assuming that ptch.y is ortogonal to epipolar plane
-    float2 tvUp = project3DPoint(sg_s_t.P, pUp);
+    float2 tvUp = project3DPoint(tc_cam_s->P, pUp);
     tvUp = tvUp - tp;
     normalize(tvUp);
     float2 vEpipShift = tvUp * epipShift;
@@ -319,8 +355,8 @@ __device__ float compNCCby3DptsYK(cudaTextureObject_t rc_tex, cudaTextureObject_
         for(int xp = -wsh; xp <= wsh; xp++)
         {
             p = ptch.p + ptch.x * (float)(ptch.d * (float)xp) + ptch.y * (float)(ptch.d * (float)yp);
-            float2 rp1 = project3DPoint(sg_s_r.P, p);
-            float2 tp1 = project3DPoint(sg_s_t.P, p) + vEpipShift;
+            float2 rp1 = project3DPoint(rc_cam_s->P, p);
+            float2 tp1 = project3DPoint(tc_cam_s->P, p) + vEpipShift;
             // float2 rp1 = rp + rvLeft*(float)xp + rvUp*(float)yp;
             // float2 tp1 = tp + tvLeft*(float)xp + tvUp*((float)yp+epipShift);
 
@@ -650,6 +686,26 @@ __device__ float frontoParellePlaneTCDepthFor3DPoint(const float3& p)
     return fabsf(orientedPointPlaneDistanceNormalizedNormal(p, sg_s_t.C, sg_s_t.ZVect));
 }
 
+__device__ float3 get3DPointForPixelAndFrontoParellePlaneRC( const cameraStructBase* rc_cam_s,
+                                                             const float2& pix,
+                                                             float fpPlaneDepth)
+{
+    float3 planep = rc_cam_s->C + rc_cam_s->ZVect * fpPlaneDepth;
+    float3 v = M3x3mulV2(rc_cam_s->iP, pix);
+    normalize(v);
+    return linePlaneIntersect(rc_cam_s->C, v, planep, rc_cam_s->ZVect);
+}
+
+__device__ float3 get3DPointForPixelAndFrontoParellePlaneRC( const cameraStructBase* rc_cam_s,
+                                                             const int2& pixi,
+                                                             float fpPlaneDepth)
+{
+    float2 pix;
+    pix.x = (float)pixi.x;
+    pix.y = (float)pixi.y;
+    return get3DPointForPixelAndFrontoParellePlaneRC( rc_cam_s, pix, fpPlaneDepth);
+}
+
 __device__ float3 get3DPointForPixelAndFrontoParellePlaneRC(const float2& pix, float fpPlaneDepth)
 {
     float3 planep = sg_s_r.C + sg_s_r.ZVect * fpPlaneDepth;
@@ -738,9 +794,24 @@ __device__ float computeRcPixSize(const float3& p)
     return pointLineDistance3D(p, sg_s_r.C, refvect);
 }
 
-__device__ float computePixSize(const float3& p)
+__device__ float computeRcPixSize( const cameraStructBase* rc_cam_s, const float3& p)
 {
-    return computeRcPixSize(p);
+    float2 rp = project3DPoint(rc_cam_s->P, p);
+    float2 rp1 = rp + make_float2(1.0f, 0.0f);
+
+    float3 refvect = M3x3mulV2(rc_cam_s->iP, rp1);
+    normalize(refvect);
+    return pointLineDistance3D(p, rc_cam_s->C, refvect);
+}
+
+__device__ float computePixSize( const cameraStructBase* rc_cam_s, const float3& p)
+{
+    return computeRcPixSize( rc_cam_s, p );
+}
+
+__device__ float computePixSize( const float3& p)
+{
+    return computeRcPixSize( p );
 }
 
 __device__ float computeTcPixSize(const float3& p)

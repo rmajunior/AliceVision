@@ -842,9 +842,8 @@ static void ps_computeSimilarityVolume(
             printf("nDepths %i, nDepthsToSearch %i \n", (int)depths_dev[ct]->getSize(), (int)nDepthsToSearch[ct]);
 
         // setup cameras matrices to the constant memory
-        ps_init_reference_camera_matrices(cams[0].param_hst);
-
-        ps_init_target_camera_matrices(cams[ct+1].param_hst);
+        // ps_init_reference_camera_matrices(cams[0].param_hst);
+        // ps_init_target_camera_matrices(cams[ct+1].param_hst);
     
         //--------------------------------------------------------------------------------------------------
         // init similarity volume
@@ -876,16 +875,17 @@ static void ps_computeSimilarityVolume(
 
         volume_slice_kernel
             <<<volume_slice_kernel_grid, volume_slice_kernel_block>>>
-            (
-            rc_tex,
-            tc_tex[ct],
-            depths_dev[ct]->getBuffer(),
-            width, height,
-            wsh,
-            gammaC, gammaP, epipShift,
-            vol_dmp[ct]->getBuffer(), vol_dmp[ct]->stride()[1], vol_dmp[ct]->stride()[0],
-            volStepXY,
-            volDimX, volDimY );
+            ( rc_tex,
+              tc_tex[ct],
+              cams[0].param_dev,
+              cams[ct+1].param_dev,
+              depths_dev[ct]->getBuffer(),
+              width, height,
+              wsh,
+              gammaC, gammaP, epipShift,
+              vol_dmp[ct]->getBuffer(), vol_dmp[ct]->stride()[1], vol_dmp[ct]->stride()[0],
+              volStepXY,
+              volDimX, volDimY );
         CHECK_CUDA_ERROR();
 
         cudaDeviceSynchronize();

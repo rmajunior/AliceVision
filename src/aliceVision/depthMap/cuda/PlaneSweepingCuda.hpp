@@ -58,6 +58,7 @@ public:
     // void** ps_texs_arr;
     Pyramid ps_texs_arr;
 
+    CudaDeviceMemoryPitched<cameraStructBase,2> _camsBasesDev;
     CudaHostMemoryHeap<cameraStructBase,2>      _camsBasesHst;
     std::vector<cameraStruct>                   cams;
     StaticVector<int>                           camsRcs;

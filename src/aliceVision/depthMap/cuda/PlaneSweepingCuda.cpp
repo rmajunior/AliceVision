@@ -194,6 +194,7 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
     // allocate global on the device
     ps_deviceAllocate(ps_texs_arr, _nImgsInGPUAtTime, maxImageWidth, maxImageHeight, _scales, _CUDADeviceNo);
 
+    _camsBasesDev.allocate( CudaSize<2>(1, _nImgsInGPUAtTime) );
     _camsBasesHst.allocate( CudaSize<2>(1, _nImgsInGPUAtTime) );
     cams     .resize(_nImgsInGPUAtTime);
     camsRcs  .resize(_nImgsInGPUAtTime);
@@ -202,6 +203,7 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
     for( int rc = 0; rc < _nImgsInGPUAtTime; ++rc )
     {
         cams[rc].param_hst = &_camsBasesHst(0,rc);
+        cams[rc].param_dev = &_camsBasesDev(0,rc);
     }
 
     for(int rc = 0; rc < _nImgsInGPUAtTime; ++rc)
@@ -810,6 +812,7 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
             ALICEVISION_LOG_DEBUG( "\ttc: " << tcs[ct] );
     }
 
+    _camsBasesDev.copyFrom( _camsBasesHst );
 
     // sweep
     volumeMBinGPUMem = ps_planeSweepingGPUPixelsVolume(
