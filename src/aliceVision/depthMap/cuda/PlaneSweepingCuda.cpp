@@ -715,6 +715,49 @@ float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
                                               int scale, int step,
                                               float epipShift )
 {
+    const int max_tcs = _nImgsInGPUAtTime - 1;
+    float retval = 0.0f;
+    if( index_set.size() <= max_tcs )
+    {
+        retval = sweepPixelsToVolumeSubset( index_set, volume_in, volume_offset, volDimX, volDimY, volStepXY, depths_in, rc, tc_in, wsh, gammaC, gammaP, scale, step, epipShift );
+    }
+    else
+    {
+        std::vector<int> index_subset;
+        float* sub_volume_in = volume_in;
+        auto it = index_set.begin();
+        auto end = index_set.end();
+        while( it != end )
+        {
+            index_subset.clear();
+            for( int i=0; i<max_tcs && it!=end; i++ )
+            {
+                index_subset.push_back( *it );
+                it++;
+            }
+
+            float r = sweepPixelsToVolumeSubset( index_subset, sub_volume_in, volume_offset, volDimX, volDimY, volStepXY, depths_in, rc, tc_in, wsh, gammaC, gammaP, scale, step, epipShift );
+            retval = std::max( retval, r );
+
+            sub_volume_in += ( max_tcs * volume_offset );
+        }
+    }
+    return retval;
+}
+
+float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& index_set,
+                                              float* volume_in,
+                                              const int volume_offset,
+                                              const int volDimX,
+                                              const int volDimY,
+                                              const int volStepXY,
+                                              const std::vector<std::vector<float> >& depths_in,
+                                              int rc,
+                                              const StaticVector<int>& tc_in,
+                                              int wsh, float gammaC, float gammaP,
+                                              int scale, int step,
+                                              float epipShift )
+{
     float volumeMBinGPUMem = 0.0f;
 
     long t1 = clock();
@@ -796,7 +839,6 @@ float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
 
     if(_verbose)
         mvsUtils::printfElapsedTime(t1);
-
 
     return volumeMBinGPUMem;
 }

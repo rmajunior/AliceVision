@@ -112,6 +112,20 @@ public:
                             StaticVector<float>* rcDepthMap, int rc, int tc, int scale, int wsh, float gammaC,
                             float gammaP, float epipShift, int xFrom, int wPart);
 
+private:
+    /* Needed to compensate for _nImgsInGPUAtTime that are smaller than |index_set|-1 */
+    float sweepPixelsToVolumeSubset(const std::vector<int>& index_set,
+                                    float* volume, const int volume_offset,
+                                    const int volDimX,
+                                    const int volDimY,
+                                    const int volStepXY,
+                                    const std::vector<std::vector<float> >& depths,
+                                    int rc,
+                                    const StaticVector<int>& tcams,
+                                    int wsh, float gammaC, float gammaP,
+                                    int scale, int step,
+                                    float epipShift);
+public:
     float sweepPixelsToVolume(const std::vector<int>& index_set,
                               float* volume, const int volume_offset,
                               const int volDimX,
