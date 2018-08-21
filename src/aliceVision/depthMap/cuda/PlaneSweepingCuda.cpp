@@ -194,15 +194,14 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
     // allocate global on the device
     ps_deviceAllocate(ps_texs_arr, _nImgsInGPUAtTime, maxImageWidth, maxImageHeight, _scales, _CUDADeviceNo);
 
-    camsBasesHst = new cameraStructBase[_nImgsInGPUAtTime];
-    // camsBases.resize(_nImgsInGPUAtTime);
+    _camsBasesHst.allocate( CudaSize<2>(1, _nImgsInGPUAtTime) );
     cams     .resize(_nImgsInGPUAtTime);
     camsRcs  .resize(_nImgsInGPUAtTime);
     camsTimes.resize(_nImgsInGPUAtTime);
 
     for( int rc = 0; rc < _nImgsInGPUAtTime; ++rc )
     {
-        cams[rc].base = &camsBasesHst[rc];
+        cams[rc].param_hst = &_camsBasesHst(0,rc);
     }
 
     for(int rc = 0; rc < _nImgsInGPUAtTime; ++rc)
@@ -220,6 +219,20 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
         // ps_deviceUpdateCam(ps_texs_arr, cams[rc], rc, _CUDADeviceNo,
         //                    _nImgsInGPUAtTime, _scales, maxImageWidth, maxImageHeight, varianceWSH);
     }
+}
+
+PlaneSweepingCuda::~PlaneSweepingCuda(void)
+{
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // deallocate global on the device
+    ps_deviceDeallocate(ps_texs_arr, _CUDADeviceNo, _nImgsInGPUAtTime, _scales);
+
+    for(int c = 0; c < cams.size(); c++)
+    {
+        delete cams[c].tex_rgba_hmh;
+    }
+
+    mp = NULL;
 }
 
 void PlaneSweepingCuda::cameraToDevice( int rc, const StaticVector<int>& tcams )
@@ -243,7 +256,7 @@ int PlaneSweepingCuda::addCam(int rc, int scale, const char* calling_func)
 
         long t1 = clock();
 
-        cps_fillCamera( camsBasesHst[oldestId], rc, mp, scale, calling_func );
+        cps_fillCamera( _camsBasesHst(0,oldestId), rc, mp, scale, calling_func );
         cps_fillCameraData(ic, cams[oldestId], rc, mp);
         ps_deviceUpdateCam(ps_texs_arr, cams[oldestId], oldestId,
                            _CUDADeviceNo, _nImgsInGPUAtTime, _scales, mp->getMaxImageWidth(), mp->getMaxImageHeight(), varianceWSH);
@@ -257,30 +270,18 @@ int PlaneSweepingCuda::addCam(int rc, int scale, const char* calling_func)
     }
     else
     {
-
-        cps_fillCamera( camsBasesHst[id], rc, mp, scale, calling_func );
+        /*
+         * Revisit this:
+         * It is not sensible to waste cycles on refilling the camera struct if the new one
+         * is identical to the old one.
+         */
+        cps_fillCamera( _camsBasesHst(0,id), rc, mp, scale, calling_func );
         // cps_fillCameraData((cameraStruct*)(*cams)[id], rc, mp, H, _scales);
         // ps_deviceUpdateCam((cameraStruct*)(*cams)[id], id, _scales);
 
         camsTimes[id] = clock();
     }
     return id;
-}
-
-PlaneSweepingCuda::~PlaneSweepingCuda(void)
-{
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // deallocate global on the device
-    ps_deviceDeallocate(ps_texs_arr, _CUDADeviceNo, _nImgsInGPUAtTime, _scales);
-
-    delete camsBasesHst;
-
-    for(int c = 0; c < cams.size(); c++)
-    {
-        delete cams[c].tex_rgba_hmh;
-    }
-
-    mp = NULL;
 }
 
 void PlaneSweepingCuda::getMinMaxdepths(int rc, const StaticVector<int>& tcams, float& minDepth, float& midDepth,

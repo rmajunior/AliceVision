@@ -678,7 +678,7 @@ void ps_SGMoptimizeSimVolume(Pyramid& ps_texs_arr,
     if(verbose)
         printf("ps_SGMoptimizeSimVolume\n");
 
-    ps_init_reference_camera_matrices(rccam.base);
+    ps_init_reference_camera_matrices(rccam.param_hst);
 
     // bind 'r4tex' from the image in Lab colorspace at the scale used
     cudaBindTextureToArray(r4tex, ps_texs_arr[rccam.camId][scale]->getArray(),
@@ -842,9 +842,9 @@ static void ps_computeSimilarityVolume(
             printf("nDepths %i, nDepthsToSearch %i \n", (int)depths_dev[ct]->getSize(), (int)nDepthsToSearch[ct]);
 
         // setup cameras matrices to the constant memory
-        ps_init_reference_camera_matrices(cams[0].base);
+        ps_init_reference_camera_matrices(cams[0].param_hst);
 
-        ps_init_target_camera_matrices(cams[ct+1].base);
+        ps_init_target_camera_matrices(cams[ct+1].param_hst);
     
         //--------------------------------------------------------------------------------------------------
         // init similarity volume
@@ -1379,12 +1379,12 @@ void ps_refineRcDepthMap(Pyramid& ps_texs_arr, float* osimMap_hmh,
     dim3 block(block_size, block_size, 1);
     dim3 grid(divUp(width, block_size), divUp(height, block_size), 1);
 
-    ps_init_reference_camera_matrices(cams[0].base);
+    ps_init_reference_camera_matrices(cams[0].param_hst);
     cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale]->getArray(),
                            cudaCreateChannelDesc<uchar4>());
 
     int c = 1;
-    ps_init_target_camera_matrices(cams[c].base);
+    ps_init_target_camera_matrices(cams[c].param_hst);
     cudaBindTextureToArray(t4tex, ps_texs_arr[cams[c].camId][scale]->getArray(),
                            cudaCreateChannelDesc<uchar4>());
 
@@ -1532,7 +1532,7 @@ void ps_optimizeDepthSimMapGradientDescent(Pyramid& ps_texs_arr,
     dim3 block(block_size, block_size, 1);
     dim3 grid(divUp(width, block_size), divUp(height, block_size), 1);
 
-    ps_init_reference_camera_matrices(cams[0].base);
+    ps_init_reference_camera_matrices(cams[0].param_hst);
     cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale]->getArray(),
                            cudaCreateChannelDesc<uchar4>());
 

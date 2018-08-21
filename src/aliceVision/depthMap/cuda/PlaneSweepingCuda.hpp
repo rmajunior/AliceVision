@@ -58,10 +58,10 @@ public:
     // void** ps_texs_arr;
     Pyramid ps_texs_arr;
 
-    cameraStructBase*             camsBasesHst;
-    std::vector<cameraStruct>     cams;
-    StaticVector<int>             camsRcs;
-    StaticVector<long>            camsTimes;
+    CudaHostMemoryHeap<cameraStructBase,2>      _camsBasesHst;
+    std::vector<cameraStruct>                   cams;
+    StaticVector<int>                           camsRcs;
+    StaticVector<long>                          camsTimes;
 
     const bool _verbose;
     bool doVizualizePartialDepthMaps;
