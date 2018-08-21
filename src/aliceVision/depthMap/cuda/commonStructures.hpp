@@ -21,6 +21,7 @@ template <unsigned Dim> class CudaSizeBase
 public:
   CudaSizeBase()
   {
+    #pragma unroll
     for(int i = Dim; i--;)
       size[i] = 0;
   }
@@ -29,6 +30,7 @@ public:
   inline CudaSizeBase operator+(const CudaSizeBase<Dim> &s) const {
     CudaSizeBase<Dim> r;
 
+    #pragma unroll
     for(size_t i = Dim; i--;)
       r[i] = (*this)[i] + s[i];
 
@@ -37,14 +39,16 @@ public:
   inline CudaSizeBase operator-(const CudaSizeBase<Dim> &s) const {
     CudaSizeBase<Dim> r;
 
+    #pragma unroll
     for(size_t i = Dim; i--;)
       r[i] = (*this)[i] - s[i];
 
     return r;
   }
-  size_t getSize() const {
+  inline size_t getSize() const {
     size_t s = 1;
 
+    #pragma unroll
     for(int i = Dim; i--;)
       s *= size[i];
 
@@ -57,31 +61,31 @@ protected:
 template <unsigned Dim>
 class CudaSize: public CudaSizeBase<Dim>
 {
-  CudaSize() {}
+    CudaSize() {}
 };
 
 template <>
 class CudaSize<1>: public CudaSizeBase<1>
 {
 public:
-  CudaSize() {}
-  explicit CudaSize(size_t s0) { size[0] = s0; }
+    CudaSize() {}
+    explicit CudaSize(size_t s0) { size[0] = s0; }
 };
 
 template <>
 class CudaSize<2>: public CudaSizeBase<2>
 {
 public:
-  CudaSize() {}
-  CudaSize(size_t s0, size_t s1) { size[0] = s0; size[1] = s1; }
+    CudaSize() {}
+    CudaSize(size_t s0, size_t s1) { size[0] = s0; size[1] = s1; }
 };
 
 template <>
 class CudaSize<3>: public CudaSizeBase<3>
 {
 public:
-  CudaSize() {}
-  CudaSize(size_t s0, size_t s1, size_t s2) { size[0] = s0; size[1] = s1; size[2] = s2; }
+    CudaSize() {}
+    CudaSize(size_t s0, size_t s1, size_t s2) { size[0] = s0; size[1] = s1; size[2] = s2; }
 };
 
 template <unsigned Dim>
@@ -125,202 +129,213 @@ CudaSize<Dim> operator-(const CudaSize<Dim> &lhs, const CudaSize<Dim> &rhs) {
 
 template <class Type, unsigned Dim> class CudaHostMemoryHeap
 {
-  Type* buffer;
-  size_t sx, sy, sz;
-  CudaSize<Dim> size;
+    Type* buffer;
+    CudaSize<Dim> size;
 public:
-  explicit CudaHostMemoryHeap(const CudaSize<Dim> &_size)
-  {
-    size = _size;
-    sx = 1;
-    sy = 1;
-    sz = 1;
-    if (Dim >= 1) sx = _size[0];
-    if (Dim >= 2) sy = _size[1];
-    if (Dim >= 3) sx = _size[2];
-    // buffer = (Type*)malloc(sx * sy * sz * sizeof (Type));
-    cudaError_t err = cudaMallocHost( &buffer, sx * sy * sz * sizeof (Type) );
-    if( err != cudaSuccess )
+    CudaHostMemoryHeap( )
+        : buffer( nullptr )
+    { }
+
+    explicit CudaHostMemoryHeap(const CudaSize<Dim> &_size)
+        : buffer( nullptr )
     {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Could not allocate pinned host memory." );
+        allocate( _size );
+        memset(buffer, 0, getBytes() );
     }
-    memset(buffer, 0, sx * sy * sz * sizeof (Type));
-  }
-  CudaHostMemoryHeap<Type,Dim>& operator=(const CudaHostMemoryHeap<Type,Dim>& rhs)
-  {
-    size = rhs.size;
-    sx = 1;
-    sy = 1;
-    sz = 1;
-    if (Dim >= 1) sx = rhs.sx;
-    if (Dim >= 2) sy = rhs.sy;
-    if (Dim >= 3) sx = rhs.sz;
-    // buffer = (Type*)malloc(sx * sy * sz * sizeof (Type));
-    cudaError_t err = cudaMallocHost( &buffer, sx * sy * sz * sizeof (Type) );
-    if( err != cudaSuccess )
+
+    CudaHostMemoryHeap<Type,Dim>& operator=(const CudaHostMemoryHeap<Type,Dim>& rhs)
     {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Could not allocate pinned host memory." );
+        if( buffer != nullptr )
+        {
+            allocate( rhs.getSize() );
+        }
+        else if( size != rhs.getSize() )
+        {
+            deallocate();
+            allocate( rhs.getSize() );
+        }
+
+        memcpy(buffer, rhs.buffer, rhs.getBytes() );
+        return *this;
     }
-    memcpy(buffer, rhs.buffer, sx * sy * sz * sizeof (Type));
-    return *this;
-  }
-  ~CudaHostMemoryHeap()
-  {
-    cudaFreeHost(buffer);
-  }
-  const CudaSize<Dim>& getSize() const
-  {
-    return size;
-  }
-  size_t getBytes() const
-  {
-    return sx * sy * sz * sizeof (Type);
-  }
-  Type *getBuffer()
-  {
-    return buffer;
-  }
-  const Type *getBuffer() const
-  {
-    return buffer;
-  }
-  Type& operator()(size_t x)
-  {
-    return buffer[x];
-  }
-  Type& operator()(size_t x, size_t y)
-  {
-    return buffer[y * sx + x];
-  }
+
+    ~CudaHostMemoryHeap()
+    {
+        deallocate();
+    }
+
+    const CudaSize<Dim>& getSize() const
+    {
+        return size;
+    }
+
+    size_t getBytes() const
+    {
+        return size.getSize() * sizeof(Type);
+        // const int sx = (Dim >= 1) ? size[0] : 1;
+        // const int sy = (Dim >= 2) ? size[1] : 1;
+        // const int sz = (Dim >= 3) ? size[2] : 1;
+        // return sx * sy * sz * sizeof (Type);
+    }
+
+    Type *getBuffer()
+    {
+        return buffer;
+    }
+    const Type *getBuffer() const
+    {
+        return buffer;
+    }
+    Type& operator()(size_t x)
+    {
+        return buffer[x];
+    }
+    Type& operator()(size_t x, size_t y)
+    {
+        const int sx = (Dim >= 1) ? size[0] : 1;
+        return buffer[y * sx + x];
+    }
+
+    void allocate( const CudaSize<Dim> &_size )
+    {
+        size = _size;
+        const int sx = (Dim >= 1) ? size[0] : 1;
+        const int sy = (Dim >= 2) ? size[1] : 1;
+        const int sz = (Dim >= 3) ? size[2] : 1;
+        cudaError_t err = cudaMallocHost( &buffer, sx * sy * sz * sizeof (Type) );
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+        }
+    }
+
+    void deallocate( )
+    {
+        if( buffer == nullptr ) return;
+        cudaFreeHost(buffer);
+        buffer = nullptr;
+    }
 };
 
 template <class Type, unsigned Dim> class CudaDeviceMemoryPitched
 {
-  Type* buffer;
-  size_t pitch;
-  // size_t sx, sy, sz;
-  CudaSize<Dim> size;
+    Type* buffer;
+    size_t pitch;
+    CudaSize<Dim> size;
 public:
-  explicit CudaDeviceMemoryPitched(const CudaSize<Dim> &_size)
-  {
-    size = _size;
-    // sx = 1;
-    // sy = 1;
-    // sz = 1;
-    // if (Dim >= 1) sx = _size[0];
-    // if (Dim >= 2) sy = _size[1];
-    // if (Dim >= 3) sx = _size[2];
-    if(Dim == 2)
-    {
-      cudaError_t err = cudaMallocPitch<Type>(&buffer, &pitch, _size[0] * sizeof(Type), _size[1]);
-      if( err != cudaSuccess )
-      {
-        ALICEVISION_LOG_ERROR( "Device alloc failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Could not allocate pitched device memory." );
-      }
-    }
-    else if(Dim == 3)
-    {
-      cudaExtent extent;
-      extent.width = _size[0] * sizeof(Type);
-      extent.height = _size[1];
-      extent.depth = _size[2];
-      cudaPitchedPtr pitchDevPtr;
-      cudaError_t err = cudaMalloc3D(&pitchDevPtr, extent);
-      if( err != cudaSuccess )
-      {
-        ALICEVISION_LOG_ERROR( "Device alloc failed, in " << __FILE__ << ":" << __LINE__ << " " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Could not allocate 3D device memory." );
-      }
-      buffer = (Type*)pitchDevPtr.ptr;
-      pitch = pitchDevPtr.pitch;
-    }
-  }
-  ~CudaDeviceMemoryPitched()
-  {
-      cudaError_t err = cudaFree(buffer);
-      if( err != cudaSuccess )
-      {
-        ALICEVISION_LOG_ERROR( "Device free failed, " << cudaGetErrorString(err) );
-      }
-  }
-  explicit inline CudaDeviceMemoryPitched(const CudaHostMemoryHeap<Type, Dim> &rhs)
-  {
-    size = rhs.getSize();
-    // sx = 1;
-    // sy = 1;
-    // sz = 1;
-    // if (Dim >= 1) sx = rhs.getSize()[0];
-    // if (Dim >= 2) sy = rhs.getSize()[1];
-    // if (Dim >= 3) sx = rhs.getSize()[2];
-    if(Dim == 2)
-    {
-      cudaError_t err = cudaMallocPitch<Type>(&buffer, &pitch, size[0] * sizeof(Type), size[1]);
-      if( err != cudaSuccess )
-      {
-        ALICEVISION_LOG_ERROR( "Device alloc failed, in " << __FILE__ << ":" << __LINE__ << " " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Could not allocate pitched device memory." );
-      }
-    }
-    else if(Dim == 3)
-    {
-      cudaExtent extent;
-      extent.width = size[0] * sizeof(Type);
-      extent.height = size[1];
-      extent.depth = size[2];
-      cudaPitchedPtr pitchDevPtr;
-      cudaError_t err = cudaMalloc3D(&pitchDevPtr, extent);
-      if( err != cudaSuccess )
-      {
-        ALICEVISION_LOG_ERROR( "Device alloc failed, in " << __FILE__ << ":" << __LINE__ << " " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Could not allocate 3D device memory." );
-      }
-      buffer = (Type*)pitchDevPtr.ptr;
-      pitch = pitchDevPtr.pitch;
-    }
-    copy(*this, rhs);
-  }
-  CudaDeviceMemoryPitched<Type,Dim> & operator=(const CudaDeviceMemoryPitched<Type,Dim> & rhs)
-  {
-    copy(*this, rhs);
-    return *this;
-  }
-  const CudaSize<Dim>& getSize() const
-  {
-    return size;
-  }
-  size_t getBytes() const
-  {
-    size_t s;
-    s = pitch;
-    for(unsigned i = 1; i < Dim; ++i)
-      s *= size[i];
-    return s;
-  }
-  size_t getPitch() const
-  {
-    return pitch;
-  }
-  Type *getBuffer()
-  {
-    return buffer;
-  }
-  const Type *getBuffer() const
-  {
-    return buffer;
-  }
+    CudaDeviceMemoryPitched( )
+        : buffer( nullptr )
+    { }
 
-  const CudaSize<Dim> stride() const
-  {
-    CudaSize<Dim> s;
-    s[0] = pitch;
-    for(unsigned i = 1; i < Dim; ++i)
-      s[i] = s[i - 1] * size[i];
-    return s;
-  }
+    explicit CudaDeviceMemoryPitched(const CudaSize<Dim> &_size)
+    {
+        allocate( _size );
+    }
 
+    explicit CudaDeviceMemoryPitched(const CudaHostMemoryHeap<Type, Dim> &rhs)
+    {
+        allocate( rhs.getSize() );
+        copyFrom( rhs );
+    }
+
+    ~CudaDeviceMemoryPitched()
+    {
+        deallocate();
+    }
+
+    CudaDeviceMemoryPitched<Type,Dim>& operator=(const CudaDeviceMemoryPitched<Type,Dim> & rhs)
+    {
+        if( buffer == nullptr )
+        {
+            allocate( rhs.size );
+        }
+        else if( size != rhs.getSize() )
+        {
+            deallocate( );
+            allocate( rhs.getSize() );
+        }
+        copyFrom( rhs );
+        return *this;
+    }
+
+    // see below with copy() functions
+    void copyFrom( const CudaHostMemoryHeap<Type, Dim>& _src );
+
+    const CudaSize<Dim>& getSize() const
+    {
+        return size;
+    }
+    size_t getBytes() const
+    {
+        size_t s;
+        s = pitch;
+        for(unsigned i = 1; i < Dim; ++i)
+            s *= size[i];
+        return s;
+    }
+    size_t getPitch() const
+    {
+        return pitch;
+    }
+    Type *getBuffer()
+    {
+        return buffer;
+    }
+    const Type *getBuffer() const
+    {
+        return buffer;
+    }
+
+    const CudaSize<Dim> stride() const
+    {
+        CudaSize<Dim> s;
+        s[0] = pitch;
+        for(unsigned i = 1; i < Dim; ++i)
+            s[i] = s[i - 1] * size[i];
+        return s;
+    }
+
+    void allocate( const CudaSize<Dim> &_size )
+    {
+        size = _size;
+
+        if(Dim == 2)
+        {
+            cudaError_t err = cudaMallocPitch<Type>(&buffer, &pitch, size[0] * sizeof(Type), size[1]);
+            if( err != cudaSuccess )
+            {
+                ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
+            }
+        }
+        else if(Dim == 3)
+        {
+            cudaExtent extent;
+            extent.width = size[0] * sizeof(Type);
+            extent.height = size[1];
+            extent.depth = size[2];
+            cudaPitchedPtr pitchDevPtr;
+            cudaError_t err = cudaMalloc3D(&pitchDevPtr, extent);
+            if( err != cudaSuccess )
+            {
+                ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
+            }
+            buffer = (Type*)pitchDevPtr.ptr;
+            pitch = pitchDevPtr.pitch;
+        }
+    }
+
+    void deallocate()
+    {
+        if( buffer == nullptr ) return;
+
+        cudaError_t err = cudaFree(buffer);
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Device free failed, " << cudaGetErrorString(err) );
+        }
+
+        buffer = nullptr;
+    }
 };
 
 template <class Type> class CudaDeviceMemory
@@ -686,20 +701,23 @@ template<class Type, unsigned Dim> void copy(CudaHostMemoryHeap<Type, Dim>& _dst
   }
 }
 
-template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>& _dst, const CudaHostMemoryHeap<Type, Dim>& _src)
+template<class Type, unsigned Dim>
+void CudaDeviceMemoryPitched<Type, Dim>::copyFrom( const CudaHostMemoryHeap<Type, Dim>& _src )
 {
   cudaMemcpyKind kind = cudaMemcpyHostToDevice;
-  if(Dim == 1) {
-    cudaError_t err = cudaMemcpy(_dst.getBuffer(), _src.getBuffer(), _src.getBytes(), kind);
+  if(Dim == 1)
+  {
+    cudaError_t err = cudaMemcpy(this->getBuffer(), _src.getBuffer(), _src.getBytes(), kind);
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
       throw std::runtime_error( "Failed to copy." );
     }
   }
-  else if(Dim == 2) {
-    cudaError_t err = cudaMemcpy2D(_dst.getBuffer(),
-                                   _dst.getPitch(),
+  else if(Dim == 2)
+  {
+    cudaError_t err = cudaMemcpy2D(this->getBuffer(),
+                                   this->getPitch(),
                                    _src.getBuffer(),
                                    _src.getSize()[0] * sizeof (Type),
                                    _src.getSize()[0] * sizeof (Type),
@@ -711,11 +729,12 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
       throw std::runtime_error( "Failed to copy." );
     }
   }
-  else if(Dim >= 3) {
+  else if(Dim >= 3)
+  {
     for (unsigned int slice=0; slice<_src.getSize()[2]; slice++)
     {
-      cudaError_t err = cudaMemcpy2D( &_dst.getBuffer()[slice * _dst.stride()[1]],
-                                      _dst.getPitch(),
+      cudaError_t err = cudaMemcpy2D( &this->getBuffer()[slice * this->stride()[1]],
+                                      this->getPitch(),
                                       _src.getBuffer() + slice * _src.getSize()[0] * _src.getSize()[1],
                                       _src.getSize()[0] * sizeof (Type),
                                       _src.getSize()[0] * sizeof (Type),
@@ -728,6 +747,11 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
       }
     }
   }
+}
+
+template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>& _dst, const CudaHostMemoryHeap<Type, Dim>& _src)
+{
+    _dst.copyFrom( _src );
 }
 
 template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>& _dst, const CudaDeviceMemoryPitched<Type, Dim>& _src)
