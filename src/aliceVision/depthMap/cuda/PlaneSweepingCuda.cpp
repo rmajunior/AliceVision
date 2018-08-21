@@ -792,18 +792,15 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
                                 << "\t- volDimX: " << volDimX << std::endl
                                 << "\t- volDimY: " << volDimY );
 
-    StaticVector<int> camsids( max_ct+1 );
-    camsids[0] = addCam(rc, scale, __FUNCTION__);
+    std::vector<cameraStruct> ttcams( max_ct+1 );
+    const int camid = addCam(rc, scale, __FUNCTION__);
+    cams[camid].camId = camid;
+    ttcams[0] = cams[camid];
     for( int ct=0; ct<max_ct; ct++ )
     {
-        camsids[ct+1] = addCam(tcs[ct], scale, __FUNCTION__);
-    }
-
-    std::vector<cameraStruct> ttcams( camsids.size() );
-    for(int i = 0; i < camsids.size(); i++)
-    {
-        cams[camsids[i]].camId = camsids[i];
-        ttcams[i] = cams[camsids[i]];
+        const int camid = addCam(tcs[ct], scale, __FUNCTION__);
+        cams[camid].camId = camid;
+        ttcams[ct+1] = cams[camid];
     }
 
     if(_verbose)
