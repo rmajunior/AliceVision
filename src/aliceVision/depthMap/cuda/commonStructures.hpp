@@ -357,90 +357,118 @@ private:
 
 template <class Type> class CudaDeviceMemory
 {
-  Type* buffer;
-  size_t sx;
+    Type* buffer;
+    size_t sx;
 public:
-  explicit CudaDeviceMemory(const size_t size)
-  {
-    cudaError_t err;
-
-    sx = size;
-    err = cudaMalloc(&buffer, sx * sizeof(Type) );
-    if( err != cudaSuccess )
+    explicit CudaDeviceMemory(const size_t size)
     {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Could not allocate CUDA pinned host memory." );
-    }
-  }
-
-  ~CudaDeviceMemory()
-  {
-    cudaFree(buffer);
-  }
-
-  explicit inline CudaDeviceMemory(const CudaHostMemoryHeap<Type,1> &rhs)
-  {
-    cudaError_t err;
-
-    sx = rhs.getSize()[0];
-
-    err = cudaMalloc(&buffer, sx * sizeof(Type) );
-    if( err != cudaSuccess )
-    {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Could not allocate CUDA pinned host memory." );
+        allocate( size );
     }
 
-    copy(*this, rhs);
-  }
-
-  CudaDeviceMemory(const Type* inbuf, const size_t size )
-  {
-    cudaError_t err;
-
-    sx = size;
-
-    err = cudaMalloc(&buffer, sx * sizeof(Type) );
-    if( err != cudaSuccess )
+    explicit inline CudaDeviceMemory(const CudaHostMemoryHeap<Type,1> &rhs)
     {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Could not allocate CUDA pinned host memory." );
+        allocate( rhs.getSize()[0] );
+        copy(*this, rhs);
     }
 
-    copyFrom( inbuf, size );
-  }
-
-  CudaDeviceMemory<Type> & operator=(const CudaDeviceMemory<Type> & rhs)
-  {
-    copy(*this, rhs);
-    return *this;
-  }
-  size_t getSize() const
-  {
-    return sx;
-  }
-  size_t getBytes() const
-  {
-    return sx*sizeof(Type);
-  }
-  Type *getBuffer()
-  {
-    return buffer;
-  }
-  const Type *getBuffer() const
-  {
-    return buffer;
-  }
-  void copyFrom( const Type* inbuf, const size_t num )
-  {
-    cudaMemcpyKind kind = cudaMemcpyHostToDevice;
-    cudaError_t err = cudaMemcpy( buffer, inbuf, num * sizeof(Type), kind);
-    if( err != cudaSuccess )
+    // constructor with synchronous copy
+    CudaDeviceMemory(const Type* inbuf, const size_t size )
     {
-      ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory in " << __FILE__ << ":" << __LINE__ << ": " << cudaGetErrorString(err) );
-      throw std::runtime_error( "Failed to copy host to device." );
+        allocate( size );
+        copyFrom( inbuf, size );
     }
-  }
+
+    // constructor with asynchronous copy
+    CudaDeviceMemory(const Type* inbuf, const size_t size, cudaStream_t stream )
+    {
+        sx = size;
+        allocate( size );
+        copyFrom( inbuf, size, stream );
+    }
+
+    ~CudaDeviceMemory()
+    {
+        deallocate( );
+    }
+
+    CudaDeviceMemory<Type> & operator=(const CudaDeviceMemory<Type> & rhs)
+    {
+        if( buffer == nullptr )
+        {
+            allocate( rhs.getSize() );
+        }
+        else if( sx != rhs.getSize() )
+        {
+            deallocate( );
+            allocate( rhs.getSize() );
+        }
+        copy(*this, rhs);
+        return *this;
+    }
+
+    size_t getSize() const
+    {
+        return sx;
+    }
+    size_t getBytes() const
+    {
+        return sx*sizeof(Type);
+    }
+    Type *getBuffer()
+    {
+        return buffer;
+    }
+    const Type *getBuffer() const
+    {
+        return buffer;
+    }
+
+    void allocate( const size_t size )
+    {
+        sx = size;
+
+        cudaError_t err = cudaMalloc(&buffer, sx * sizeof(Type) );
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+            throw std::runtime_error( "Could not allocate pinned host memory." );
+        }
+    }
+
+    void deallocate()
+    {
+        if( buffer == nullptr ) return;
+
+        cudaError_t err = cudaFree(buffer);
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Device free failed, " << cudaGetErrorString(err) );
+        }
+
+        buffer = nullptr;
+    }
+
+    void copyFrom( const Type* inbuf, const size_t num )
+    {
+        cudaMemcpyKind kind = cudaMemcpyHostToDevice;
+        cudaError_t err = cudaMemcpy( buffer, inbuf, num * sizeof(Type), kind );
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory: " << cudaGetErrorString(err) );
+            throw std::runtime_error( "Failed to copy from flat host buffer to CudaDeviceMemory" );
+        }
+    }
+
+    void copyFrom( const Type* inbuf, const size_t num, cudaStream_t stream )
+    {
+        cudaMemcpyKind kind = cudaMemcpyHostToDevice;
+        cudaError_t err = cudaMemcpyAsync( buffer, inbuf, num * sizeof(Type), kind, stream );
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory: " << cudaGetErrorString(err) );
+            throw std::runtime_error( "Failed to copy from flat host buffer to CudaDeviceMemory" );
+        }
+    }
 };
 
 template <class Type, unsigned Dim> class CudaArray

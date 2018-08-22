@@ -785,7 +785,8 @@ static void ps_computeSimilarityVolume(
                                 Pyramid& ps_texs_arr,
                                 const int max_ct,
                                 std::vector<CudaDeviceMemoryPitched<float, 3>*> vol_dmp,
-                                const std::vector<cameraStruct>& cams,
+                                const cameraStruct& rcam,
+                                const std::vector<cameraStruct>& tcams,
                                 int width, int height,
                                 int volStepXY,
                                 int volDimX, int volDimY,
@@ -816,16 +817,17 @@ static void ps_computeSimilarityVolume(
     cudaResourceDesc res_desc;
     res_desc.resType = cudaResourceTypeArray;
 
-    res_desc.res.array.array = ps_texs_arr[cams[0].camId][scale]->getArray();
+    res_desc.res.array.array = ps_texs_arr[rcam.camId][scale]->getArray();
     err = cudaCreateTextureObject( &rc_tex, &res_desc, &tex_desc, 0 );
     if( err != cudaSuccess )
     {
         ALICEVISION_LOG_ERROR( "Failed to bind texture object to ref cam texture: " << cudaGetErrorString(err) );
         throw std::runtime_error( "Failed to bind texture object to ref cam texture." );
     }
+
     for( int ct=0; ct<max_ct; ct++ )
     {
-        res_desc.res.array.array = ps_texs_arr[cams[ct+1].camId][scale]->getArray();
+        res_desc.res.array.array = ps_texs_arr[tcams[ct].camId][scale]->getArray();
         err = cudaCreateTextureObject( &tc_tex[ct], &res_desc, &tex_desc, 0 );
         if( err != cudaSuccess )
         {
@@ -877,8 +879,8 @@ static void ps_computeSimilarityVolume(
             <<<volume_slice_kernel_grid, volume_slice_kernel_block>>>
             ( rc_tex,
               tc_tex[ct],
-              cams[0].param_dev,
-              cams[ct+1].param_dev,
+              rcam.param_dev,
+              tcams[ct].param_dev,
               depths_dev[ct]->getBuffer(),
               width, height,
               wsh,
@@ -903,7 +905,8 @@ float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
                                       const int max_ct,
                                       float* volume_out,
                                       const int volume_offset,
-                                      const std::vector<cameraStruct>& cams,
+                                      const cameraStruct& rcam,
+                                      const std::vector<cameraStruct>& tcams,
                                       int width, int height,
                                       int volStepXY, int volDimX, int volDimY,
                                       std::vector<CudaDeviceMemory<float>*> depths_dev,
@@ -940,7 +943,7 @@ float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
     ps_computeSimilarityVolume(ps_texs_arr,
                                max_ct,
                                volSim_dmp,
-                               cams,
+                               rcam, tcams,
                                width, height,
                                volStepXY,
                                volDimX, volDimY,

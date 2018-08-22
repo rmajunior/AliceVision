@@ -719,31 +719,27 @@ float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
 {
     const int max_tcs = _nImgsInGPUAtTime - 1;
     float retval = 0.0f;
-    if( index_set.size() <= max_tcs )
+    std::vector<int> index_subset;
+    float* sub_volume_in = volume_in;
+    auto it = index_set.begin();
+    auto end = index_set.end();
+
+    while( it != end )
     {
-        retval = sweepPixelsToVolumeSubset( index_set, volume_in, volume_offset, volDimX, volDimY, volStepXY, depths_in, rc, tc_in, wsh, gammaC, gammaP, scale, step, epipShift );
-    }
-    else
-    {
-        std::vector<int> index_subset;
-        float* sub_volume_in = volume_in;
-        auto it = index_set.begin();
-        auto end = index_set.end();
-        while( it != end )
+        /* avoid special case for index_set.size() <= max_ct */
+        index_subset.clear();
+        for( int i=0; i<max_tcs && it!=end; i++ )
         {
-            index_subset.clear();
-            for( int i=0; i<max_tcs && it!=end; i++ )
-            {
-                index_subset.push_back( *it );
-                it++;
-            }
-
-            float r = sweepPixelsToVolumeSubset( index_subset, sub_volume_in, volume_offset, volDimX, volDimY, volStepXY, depths_in, rc, tc_in, wsh, gammaC, gammaP, scale, step, epipShift );
-            retval = std::max( retval, r );
-
-            sub_volume_in += ( max_tcs * volume_offset );
+            index_subset.push_back( *it );
+            it++;
         }
+
+        float r = sweepPixelsToVolumeSubset( index_subset, sub_volume_in, volume_offset, volDimX, volDimY, volStepXY, depths_in, rc, tc_in, wsh, gammaC, gammaP, scale, step, epipShift );
+        retval = std::max( retval, r );
+
+        sub_volume_in += ( max_tcs * volume_offset );
     }
+
     return retval;
 }
 
@@ -779,13 +775,6 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
 
     const int max_ct = index_set.size();
 
-    std::vector<CudaDeviceMemory<float>*> depths_dev( index_set.size() );
-    for( int ct=0; ct<max_ct; ct++ )
-    {
-        const float* depth_data = depths[ct]->data();
-        depths_dev[ct] = new CudaDeviceMemory<float>( depth_data, nDepthsToSearch[ct] );
-    }
-
     if(_verbose)
         ALICEVISION_LOG_DEBUG("sweepPixelsVolume:" << std::endl
                                 << "\t- scale: " << scale << std::endl
@@ -794,15 +783,16 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
                                 << "\t- volDimX: " << volDimX << std::endl
                                 << "\t- volDimY: " << volDimY );
 
-    std::vector<cameraStruct> ttcams( max_ct+1 );
+    cameraStruct              rcam;
+    std::vector<cameraStruct> tcams( max_ct );
     const int camid = addCam(rc, scale, __FUNCTION__);
     cams[camid].camId = camid;
-    ttcams[0] = cams[camid];
+    rcam = cams[camid];
     for( int ct=0; ct<max_ct; ct++ )
     {
         const int camid = addCam(tcs[ct], scale, __FUNCTION__);
         cams[camid].camId = camid;
-        ttcams[ct+1] = cams[camid];
+        tcams[ct] = cams[camid];
     }
 
     if(_verbose)
@@ -814,13 +804,20 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
 
     _camsBasesDev.copyFrom( _camsBasesHst );
 
+    std::vector<CudaDeviceMemory<float>*> depths_dev( index_set.size() );
+    for( int ct=0; ct<max_ct; ct++ )
+    {
+        const float* depth_data = depths[ct]->data();
+        depths_dev[ct] = new CudaDeviceMemory<float>( depth_data, nDepthsToSearch[ct] );
+    }
+
     // sweep
     volumeMBinGPUMem = ps_planeSweepingGPUPixelsVolume(
-            ps_texs_arr, // indexed with ttcams[].camId
+            ps_texs_arr, // indexed with tcams[].camId
             max_ct,          // ct=0..max_ct ; volume=&volume_in[ct*volume_offset]
             volume_in,
             volume_offset,
-            ttcams, w, h, volStepXY,
+            rcam, tcams, w, h, volStepXY,
             volDimX, volDimY,
             depths_dev,
             nDepthsToSearch,
