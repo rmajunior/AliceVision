@@ -153,6 +153,8 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
     , _nbestkernelSizeHalf( 1 )
     , _nImgsInGPUAtTime( 2 )
 {
+    cudaError_t err;
+
     /* The caller knows all camera that will become rc cameras, but it does not
      * pass that information to this function.
      * It knows the nearest cameras for each of those rc cameras, but it doesn't
@@ -204,6 +206,13 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
     {
         cams[rc].param_hst = &_camsBasesHst(0,rc);
         cams[rc].param_dev = &_camsBasesDev(0,rc);
+
+        err = cudaStreamCreate( &cams[rc].stream );
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_WARNING("Failed to create a CUDA stream object for async sweeping");
+            cams[rc].stream = 0;
+        }
     }
 
     for(int rc = 0; rc < _nImgsInGPUAtTime; ++rc)
@@ -232,6 +241,8 @@ PlaneSweepingCuda::~PlaneSweepingCuda(void)
     for(int c = 0; c < cams.size(); c++)
     {
         delete cams[c].tex_rgba_hmh;
+
+        cudaStreamDestroy( cams[c].stream );
     }
 
     mp = NULL;
@@ -748,6 +759,9 @@ float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
 
         sub_volume_out += ( max_tcs * volume_offset );
     }
+    cudaDeviceSynchronize();
+
+    for( auto ptr: volSim_dmp ) delete ptr;
 
     return retval;
 }
@@ -811,13 +825,15 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
             ALICEVISION_LOG_DEBUG( "\ttc: " << tcs[ct] );
     }
 
+    // last synchronous step
+    cudaDeviceSynchronize();
     _camsBasesDev.copyFrom( _camsBasesHst );
 
     std::vector<CudaDeviceMemory<float>*> depths_dev( index_set.size() );
     for( int ct=0; ct<max_ct; ct++ )
     {
         const float* depth_data = depths[ct]->data();
-        depths_dev[ct] = new CudaDeviceMemory<float>( depth_data, nDepthsToSearch[ct] );
+        depths_dev[ct] = new CudaDeviceMemory<float>( depth_data, nDepthsToSearch[ct], tcams[ct].stream );
     }
 
     // sweep

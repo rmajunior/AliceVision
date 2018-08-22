@@ -307,10 +307,31 @@ void ps_deviceAllocate(Pyramid& ps_texs_arr, int ncams, int width, int height, i
         {
             int w = width / (s + 1);
             int h = height / (s + 1);
-            ps_texs_arr[c][s] = new CudaArray<uchar4, 2>(CudaSize<2>(w, h));
-            allBytes += ps_texs_arr[c][s]->getBytes();
-        };
-    };
+            ps_texs_arr[c][s].arr = new CudaArray<uchar4, 2>(CudaSize<2>(w, h));
+            allBytes += ps_texs_arr[c][s].arr->getBytes();
+
+            cudaTextureDesc  tex_desc;
+            memset(&tex_desc, 0, sizeof(cudaTextureDesc));
+            tex_desc.normalizedCoords = 0; // addressed (x,y) in [width,height]
+            tex_desc.addressMode[0]   = cudaAddressModeClamp;
+            tex_desc.addressMode[1]   = cudaAddressModeClamp;
+            tex_desc.addressMode[2]   = cudaAddressModeClamp;
+            tex_desc.readMode         = cudaReadModeNormalizedFloat; // transform uchar to float
+            tex_desc.filterMode       = cudaFilterModeLinear; // with interpolation
+
+            cudaResourceDesc res_desc;
+            res_desc.resType = cudaResourceTypeArray;
+            res_desc.res.array.array = ps_texs_arr[c][s].arr->getArray();
+
+            cudaError_t err = cudaCreateTextureObject( &ps_texs_arr[c][s].tex, &res_desc, &tex_desc, 0 );
+            if( err != cudaSuccess )
+            {
+                ALICEVISION_LOG_ERROR( "Failed to bind texture object to cam array: " << cudaGetErrorString(err) );
+                throw std::runtime_error( "Failed to bind texture object to ref cam array." );
+            }
+        }
+    }
+
     CHECK_CUDA_ERROR();
 
     // calcDCTCoefficients();
@@ -356,20 +377,20 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
         dim3 grid(divUp(w, block_size), divUp(h, block_size), 1);
         rgb2lab_kernel<<<grid, block>>>(tex_lab_dmp.getBuffer(), tex_lab_dmp.stride()[0], w, h);
         cudaThreadSynchronize();
-        copy((*ps_texs_arr[camId][0]), tex_lab_dmp);
+        copy((*ps_texs_arr[camId][0].arr), tex_lab_dmp);
 
         if(varianceWsh > 0)
         {
-            cudaBindTextureToArray(r4tex, ps_texs_arr[camId][0]->getArray(), cudaCreateChannelDesc<uchar4>());
+            cudaBindTextureToArray(r4tex, ps_texs_arr[camId][0].arr->getArray(), cudaCreateChannelDesc<uchar4>());
             compute_varLofLABtoW_kernel<<<grid, block>>>(tex_lab_dmp.getBuffer(), tex_lab_dmp.stride()[0], w, h,
                                                          varianceWsh);
             cudaThreadSynchronize();
             cudaUnbindTexture(r4tex);
-            copy((*ps_texs_arr[camId][0]), tex_lab_dmp);
+            copy((*ps_texs_arr[camId][0].arr), tex_lab_dmp);
         };
     }
 
-    cudaBindTextureToArray(r4tex, ps_texs_arr[camId][0]->getArray(), cudaCreateChannelDesc<uchar4>());
+    cudaBindTextureToArray(r4tex, ps_texs_arr[camId][0].arr->getArray(), cudaCreateChannelDesc<uchar4>());
 
     // for each scale
     for(int scale = 1; scale < scales; scale++)
@@ -390,19 +411,19 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
             radius //, 15.5f
             );
         cudaThreadSynchronize();
-        copy((*ps_texs_arr[camId][scale]), tex_lab_dmp);
+        copy((*ps_texs_arr[camId][scale].arr), tex_lab_dmp);
 
         if(varianceWsh > 0)
         {
             cudaUnbindTexture(r4tex);
-            cudaBindTextureToArray(r4tex, ps_texs_arr[camId][scale]->getArray(),
+            cudaBindTextureToArray(r4tex, ps_texs_arr[camId][scale].arr->getArray(),
                                    cudaCreateChannelDesc<uchar4>());
             compute_varLofLABtoW_kernel<<<grid, block>>>(tex_lab_dmp.getBuffer(), tex_lab_dmp.stride()[0],
                                                          w / (scale + 1), h / (scale + 1), varianceWsh);
             cudaThreadSynchronize();
             cudaUnbindTexture(r4tex);
-            copy((*ps_texs_arr[camId][scale]), tex_lab_dmp);
-            cudaBindTextureToArray(r4tex, ps_texs_arr[camId][0]->getArray(), cudaCreateChannelDesc<uchar4>());
+            copy((*ps_texs_arr[camId][scale].arr), tex_lab_dmp);
+            cudaBindTextureToArray(r4tex, ps_texs_arr[camId][0].arr->getArray(), cudaCreateChannelDesc<uchar4>());
         };
 
         cudaUnbindTexture(gaussianTex);
@@ -419,8 +440,13 @@ void ps_deviceDeallocate(Pyramid& ps_texs_arr, int CUDAdeviceNo, int ncams, int 
     testCUDAdeviceNo(CUDAdeviceNo);
 
     for(int c = 0; c < ncams; c++)
+    {
         for(int s = 0; s < scales; s++)
-            delete ps_texs_arr[c][s];
+        {
+            delete ps_texs_arr[c][s].arr;
+            cudaDestroyTextureObject( ps_texs_arr[c][s].tex );
+        }
+    }
 }
 
 void ps_aggregatePathVolume2(CudaDeviceMemoryPitched<unsigned char, 3>& vol_dmp, int volDimX, int volDimY,
@@ -681,7 +707,7 @@ void ps_SGMoptimizeSimVolume(Pyramid& ps_texs_arr,
     ps_init_reference_camera_matrices(rccam.param_hst);
 
     // bind 'r4tex' from the image in Lab colorspace at the scale used
-    cudaBindTextureToArray(r4tex, ps_texs_arr[rccam.camId][scale]->getArray(),
+    cudaBindTextureToArray(r4tex, ps_texs_arr[rccam.camId][scale].arr->getArray(),
                            cudaCreateChannelDesc<uchar4>());
 
     //CudaDeviceMemoryPitched<unsigned char, 3> volSim_dmp(*iovol_hmh);
@@ -800,42 +826,7 @@ static void ps_computeSimilarityVolume(
 {
     clock_t tall = tic();
     testCUDAdeviceNo(CUDAdeviceNo);
-    cudaError_t err;
 
-    cudaTextureObject_t rc_tex;
-    std::vector<cudaTextureObject_t> tc_tex( max_ct );
-
-    cudaTextureDesc  tex_desc;
-    memset(&tex_desc, 0, sizeof(cudaTextureDesc));
-    tex_desc.normalizedCoords = 0; // addressed (x,y) in [width,height]
-    tex_desc.addressMode[0]   = cudaAddressModeClamp;
-    tex_desc.addressMode[1]   = cudaAddressModeClamp;
-    tex_desc.addressMode[2]   = cudaAddressModeClamp;
-    tex_desc.readMode         = cudaReadModeNormalizedFloat; // transform uchar to float
-    tex_desc.filterMode       = cudaFilterModeLinear; // with interpolation
-
-    cudaResourceDesc res_desc;
-    res_desc.resType = cudaResourceTypeArray;
-
-    res_desc.res.array.array = ps_texs_arr[rcam.camId][scale]->getArray();
-    err = cudaCreateTextureObject( &rc_tex, &res_desc, &tex_desc, 0 );
-    if( err != cudaSuccess )
-    {
-        ALICEVISION_LOG_ERROR( "Failed to bind texture object to ref cam texture: " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Failed to bind texture object to ref cam texture." );
-    }
-
-    for( int ct=0; ct<max_ct; ct++ )
-    {
-        res_desc.res.array.array = ps_texs_arr[tcams[ct].camId][scale]->getArray();
-        err = cudaCreateTextureObject( &tc_tex[ct], &res_desc, &tex_desc, 0 );
-        if( err != cudaSuccess )
-        {
-            ALICEVISION_LOG_ERROR( "Failed to bind texture object to tc cam texture #" << ct << ": " << cudaGetErrorString(err) );
-            throw std::runtime_error( "Failed to bind texture object to tc cam texture." );
-        }
-    }
-    
     for( int ct=0; ct<max_ct; ct++ )
     {
         const int volDimZ = nDepthsToSearch[ct];
@@ -858,7 +849,7 @@ static void ps_computeSimilarityVolume(
         const int    init_kernel_2Dfloat_grid = divUp( elements, init_kernel_2Dfloat_block.x );
 
         init_kernel_2Dfloat
-            <<<init_kernel_2Dfloat_grid, init_kernel_2Dfloat_block>>>
+            <<<init_kernel_2Dfloat_grid, init_kernel_2Dfloat_block,0,tcams[ct].stream>>>
             ( vol_dmp[ct]->getBuffer(),
             elements,
             255.0f );
@@ -876,9 +867,9 @@ static void ps_computeSimilarityVolume(
                                     );
 
         volume_slice_kernel
-            <<<volume_slice_kernel_grid, volume_slice_kernel_block>>>
-            ( rc_tex,
-              tc_tex[ct],
+            <<<volume_slice_kernel_grid, volume_slice_kernel_block,0,tcams[ct].stream>>>
+            ( ps_texs_arr[rcam.camId][scale].tex,
+              ps_texs_arr[tcams[ct].camId][scale].tex,
               rcam.param_dev,
               tcams[ct].param_dev,
               depths_dev[ct]->getBuffer(),
@@ -892,10 +883,6 @@ static void ps_computeSimilarityVolume(
 
         cudaDeviceSynchronize();
     }
-
-    cudaDestroyTextureObject( rc_tex );
-    for( int ct=0; ct<max_ct; ct++ )
-        cudaDestroyTextureObject( tc_tex[ct] );
 
     if(verbose)
         printf("ps_computeSimilarityVolume elapsed time: %f ms \n", toc(tall));
@@ -927,8 +914,12 @@ float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
 
     if(verbose)
     {
+        float sz = 0;
         for( int ct=0; ct<max_ct; ct++ )
-            printf("total size of volume map in GPU memory: %f\n", (float)volSim_dmp[ct]->getBytes() / (1024.0f * 1024.0f));
+        {
+            sz += (float)volSim_dmp[ct]->getBytes() / (1024.0f * 1024.0f);
+        }
+        printf("total size of volume maps for %d images in GPU memory: %f MB\n", max_ct, sz );
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -952,15 +943,13 @@ float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
         // copy to host
         float* ovol_hmh = &volume_out[ct*volume_offset];
         const int volDimZ = nDepthsToSearch[ct];
-        copy( ovol_hmh, volDimX, volDimY, volDimZ, *volSim_dmp[ct] );
+        copy( ovol_hmh, volDimX, volDimY, volDimZ, *volSim_dmp[ct], tcams[ct].stream );
 
         // pr_printfDeviceMemoryInfo();
         // printf("total size of volume map in GPU memory: %f\n",(float)d_volSim.getBytes()/(1024.0f*1024.0f));
 
         retval = std::max( retval, (float)volSim_dmp[ct]->getBytes() / (1024.0f * 1024.0f) );
     }
-
-    for( auto ptr : volSim_dmp ) delete ptr;
 
     return retval;
 }
@@ -1218,7 +1207,7 @@ void ps_getTexture( Pyramid& ps_texs_arr, CudaHostMemoryHeap<uchar4, 2>* oimg_hm
     clock_t tall = tic();
     testCUDAdeviceNo(CUDAdeviceNo);
 
-    copy((*oimg_hmh), (*ps_texs_arr[camId][scale]));
+    copy((*oimg_hmh), (*ps_texs_arr[camId][scale].arr));
     printf("gpu elapsed time: %f ms \n", toc(tall));
 };
 
@@ -1376,12 +1365,12 @@ void ps_refineRcDepthMap(Pyramid& ps_texs_arr, float* osimMap_hmh,
     dim3 grid(divUp(width, block_size), divUp(height, block_size), 1);
 
     ps_init_reference_camera_matrices(cams[0].param_hst);
-    cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale]->getArray(),
+    cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale].arr->getArray(),
                            cudaCreateChannelDesc<uchar4>());
 
     int c = 1;
     ps_init_target_camera_matrices(cams[c].param_hst);
-    cudaBindTextureToArray(t4tex, ps_texs_arr[cams[c].camId][scale]->getArray(),
+    cudaBindTextureToArray(t4tex, ps_texs_arr[cams[c].camId][scale].arr->getArray(),
                            cudaCreateChannelDesc<uchar4>());
 
     CudaDeviceMemoryPitched<float3, 2> lastThreeSimsMap(CudaSize<2>(width, height));
@@ -1529,7 +1518,7 @@ void ps_optimizeDepthSimMapGradientDescent(Pyramid& ps_texs_arr,
     dim3 grid(divUp(width, block_size), divUp(height, block_size), 1);
 
     ps_init_reference_camera_matrices(cams[0].param_hst);
-    cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale]->getArray(),
+    cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale].arr->getArray(),
                            cudaCreateChannelDesc<uchar4>());
 
     CudaDeviceMemoryPitched<float2, 2>** dataMaps_dmp;
@@ -1600,7 +1589,7 @@ void ps_getSilhoueteMap(Pyramid& ps_texs_arr, CudaHostMemoryHeap<bool, 2>* omap_
     dim3 block(block_size, block_size, 1);
     dim3 grid(divUp(width / step, block_size), divUp(height / step, block_size), 1);
 
-    cudaBindTextureToArray(rTexU4, ps_texs_arr[camId][scale]->getArray(), cudaCreateChannelDesc<uchar4>());
+    cudaBindTextureToArray(rTexU4, ps_texs_arr[camId][scale].arr->getArray(), cudaCreateChannelDesc<uchar4>());
 
     CudaDeviceMemoryPitched<bool, 2> map_dmp(CudaSize<2>(width / step, height / step));
     getSilhoueteMap_kernel<<<grid, block>>>(map_dmp.getBuffer(), map_dmp.stride()[0], step, width, height, maskColorLab);

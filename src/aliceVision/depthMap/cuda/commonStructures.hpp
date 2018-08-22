@@ -1058,6 +1058,29 @@ template<class Type, unsigned Dim> void copy(Type* _dst, size_t sx, size_t sy, s
   }
 }
 
+template<class Type, unsigned Dim> void copy(Type* _dst, size_t sx, size_t sy, size_t sz, const CudaDeviceMemoryPitched<Type, Dim>& _src, cudaStream_t stream)
+{
+  if(Dim >= 3) {
+    for (unsigned int slice=0; slice<sz; slice++)
+    {
+      cudaError_t err = cudaMemcpy2DAsync( _dst + sx * sy * slice,
+                                           sx * sizeof (Type),
+                                           (unsigned char*)_src.getBuffer() + slice * _src.stride()[1],
+                                           _src.stride()[0], // _src.getPitch(),
+                                           sx * sizeof (Type),
+                                           sy,
+                                           cudaMemcpyDeviceToHost,
+                                           stream );
+      if( err != cudaSuccess )
+      {
+        ALICEVISION_LOG_ERROR( "Failed to copy : " << std::endl
+            << "    " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error("Failed to copy.");
+      }
+    }
+  }
+}
+
 template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>& _dst, const Type* _src, size_t sx, size_t sy, size_t sz)
 {
   if(Dim >= 3) {
@@ -1101,6 +1124,7 @@ struct cameraStruct
     const cameraStructBase* param_dev;
     CudaHostMemoryHeap<uchar4, 2>* tex_rgba_hmh;
     int camId;
+    cudaStream_t stream; // allow async work on cameras used in parallel
 };
 
 struct ps_parameters
@@ -1110,7 +1134,12 @@ struct ps_parameters
     int rotY;
 };
 
-typedef std::vector<std::vector<CudaArray<uchar4, 2>*> > Pyramid;
+struct TexturedArray
+{
+    CudaArray<uchar4, 2>* arr;
+    cudaTextureObject_t tex;
+};
+typedef std::vector<std::vector<TexturedArray> > Pyramid;
 
 #define MAX_PTS 500           // 500
 #define MAX_PATCH_PIXELS 2500 // 50*50
