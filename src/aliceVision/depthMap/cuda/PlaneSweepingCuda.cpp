@@ -21,11 +21,21 @@
 namespace aliceVision {
 namespace depthMap {
 
+static clock_t tic()
+{
+    return clock();
+}
+
+// returns the ms passed after last call to tic()
+static float toc(clock_t ticClk)
+{
+    return (float)((clock() - ticClk) * 1000.0 / CLOCKS_PER_SEC);
+}
+
+
 static void cps_fillCamera(cameraStructBase& base, int c, mvsUtils::MultiViewParams* mp, int scale, const char* called_from )
 {
-    std::cerr << "Calling " << __FUNCTION__
-              << "     to fill info for camera " << c << " at scale " << scale
-              << " from " << called_from << std::endl;
+    // std::cerr << "Calling " << __FUNCTION__ << "     to fill info for camera " << c << " at scale " << scale << " from " << called_from << std::endl;
 
     Matrix3x3 scaleM;
     scaleM.m11 = 1.0 / (float)scale;
@@ -115,8 +125,7 @@ static void cps_fillCamera(cameraStructBase& base, int c, mvsUtils::MultiViewPar
 
 static void cps_fillCameraData(mvsUtils::ImagesCache* ic, cameraStruct& cam, int c, mvsUtils::MultiViewParams* mp)
 {
-    std::cerr << "Calling " << __FUNCTION__
-              << "    to fill pixels for camera " << c << std::endl;
+    // std::cerr << "Calling " << __FUNCTION__ << "    to fill pixels for camera " << c << std::endl;
 
     // memcpyGrayImageFromFileToArr(cam->tex_hmh->getBuffer(), mp->indexes[c], mp, true, 1, 0);
     // memcpyRGBImageFromFileToArr(
@@ -153,6 +162,8 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
     , _nbestkernelSizeHalf( 1 )
     , _nImgsInGPUAtTime( 2 )
 {
+    ps_testCUDAdeviceNo( _CUDADeviceNo );
+
     cudaError_t err;
 
     /* The caller knows all camera that will become rc cameras, but it does not
@@ -781,7 +792,8 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
 {
     float volumeMBinGPUMem = 0.0f;
 
-    long t1 = clock();
+    // long t1 = clock();
+    clock_t t1 = tic();
 
     const int w = mp->getWidth(rc) / scale;
     const int h = mp->getHeight(rc) / scale;
@@ -861,7 +873,10 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
     }
 
     if(_verbose)
-        mvsUtils::printfElapsedTime(t1);
+    {
+        // mvsUtils::printfElapsedTime(t1);
+        printf("sweepPixelsToVolumeSubset elapsed time: %f ms \n", toc(t1));
+    }
 
     return volumeMBinGPUMem;
 }

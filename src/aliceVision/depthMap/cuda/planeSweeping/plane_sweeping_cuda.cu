@@ -346,7 +346,7 @@ void ps_deviceAllocate(Pyramid& ps_texs_arr, int ncams, int width, int height, i
     // printf("ps_deviceAllocate - done\n");
 }
 
-void testCUDAdeviceNo(int CUDAdeviceNo)
+void ps_testCUDAdeviceNo(int CUDAdeviceNo)
 {
     int myCUDAdeviceNo;
     cudaGetDevice(&myCUDAdeviceNo);
@@ -360,12 +360,7 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
                         const cameraStruct& cam, int camId, int CUDAdeviceNo,
                         int ncamsAllocated, int scales, int w, int h, int varianceWsh)
 {
-    std::cerr << std::endl
-              << "Calling " << __FUNCTION__ << std::endl
-              << "    for camera id " << camId << " and " << scales << " scales" << std::endl
-              <<std::endl;
-
-    testCUDAdeviceNo(CUDAdeviceNo);
+    // std::cerr << std::endl << "Calling " << __FUNCTION__ << std::endl << "    for camera id " << camId << " and " << scales << " scales" << std::endl <<std::endl;
 
     // compute gradient
     {
@@ -437,8 +432,6 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
 
 void ps_deviceDeallocate(Pyramid& ps_texs_arr, int CUDAdeviceNo, int ncams, int scales)
 {
-    testCUDAdeviceNo(CUDAdeviceNo);
-
     for(int c = 0; c < ncams; c++)
     {
         for(int s = 0; s < scales; s++)
@@ -700,7 +693,6 @@ void ps_SGMoptimizeSimVolume(Pyramid& ps_texs_arr,
                              bool verbose, unsigned char P1, unsigned char P2,
                              int scale, int CUDAdeviceNo, int ncamsAllocated, int scales)
 {
-    testCUDAdeviceNo(CUDAdeviceNo);
     if(verbose)
         printf("ps_SGMoptimizeSimVolume\n");
 
@@ -824,8 +816,7 @@ static void ps_computeSimilarityVolume(
                                 int nbest, bool useTcOrRcPixSize, float gammaC, float gammaP, bool subPixel,
                                 float epipShift)
 {
-    clock_t tall = tic();
-    testCUDAdeviceNo(CUDAdeviceNo);
+    // clock_t tall = tic();
 
     for( int ct=0; ct<max_ct; ct++ )
     {
@@ -879,13 +870,13 @@ static void ps_computeSimilarityVolume(
               vol_dmp[ct]->getBuffer(), vol_dmp[ct]->stride()[1], vol_dmp[ct]->stride()[0],
               volStepXY,
               volDimX, volDimY );
-        CHECK_CUDA_ERROR();
+        // CHECK_CUDA_ERROR();
 
-        cudaDeviceSynchronize();
+        // cudaDeviceSynchronize();
     }
 
-    if(verbose)
-        printf("ps_computeSimilarityVolume elapsed time: %f ms \n", toc(tall));
+    // no point in timing - this is async
+    // if(verbose) printf("ps_computeSimilarityVolume elapsed time: %f ms \n", toc(tall));
 }
 
 float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
@@ -906,8 +897,6 @@ float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
                                       float gammaP, bool subPixel, float epipShift)
 {
     float retval = 0.0f;
-
-    testCUDAdeviceNo(CUDAdeviceNo);
 
     if(verbose)
         pr_printfDeviceMemoryInfo();
@@ -1205,7 +1194,6 @@ void ps_getTexture( Pyramid& ps_texs_arr, CudaHostMemoryHeap<uchar4, 2>* oimg_hm
                    int scale, int CUDAdeviceNo, int ncamsAllocated, int scales)
 {
     clock_t tall = tic();
-    testCUDAdeviceNo(CUDAdeviceNo);
 
     copy((*oimg_hmh), (*ps_texs_arr[camId][scale].arr));
     printf("gpu elapsed time: %f ms \n", toc(tall));
@@ -1356,8 +1344,6 @@ void ps_refineRcDepthMap(Pyramid& ps_texs_arr, float* osimMap_hmh,
                          int scales, bool verbose, int wsh, float gammaC, float gammaP, float epipShift,
                          bool moveByTcOrRc, int xFrom)
 {
-    testCUDAdeviceNo(CUDAdeviceNo);
-
     ///////////////////////////////////////////////////////////////////////////////
     // setup block and grid
     int block_size = 16;
@@ -1507,7 +1493,6 @@ void ps_optimizeDepthSimMapGradientDescent(Pyramid& ps_texs_arr,
                                            int CUDAdeviceNo, int ncamsAllocated, int scales, bool verbose, int yFrom)
 {
     clock_t tall = tic();
-    testCUDAdeviceNo(CUDAdeviceNo);
 
     float samplesPerPixSize = (float)(nSamplesHalf / ((nDepthsToRefine - 1) / 2));
 
@@ -1574,7 +1559,6 @@ void ps_getSilhoueteMap(Pyramid& ps_texs_arr, CudaHostMemoryHeap<bool, 2>* omap_
                         uchar4 maskColorRgb, bool verbose)
 {
     clock_t tall = tic();
-    testCUDAdeviceNo(CUDAdeviceNo);
 
     uchar4 maskColorLab;
     float3 flab = h_xyz2lab(h_rgb2xyz(uchar4_to_float3(maskColorRgb)));
