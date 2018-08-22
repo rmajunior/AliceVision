@@ -116,7 +116,8 @@ public:
 private:
     /* Needed to compensate for _nImgsInGPUAtTime that are smaller than |index_set|-1 */
     float sweepPixelsToVolumeSubset(const std::vector<int>& index_set,
-                                    float* volume, const int volume_offset,
+                                    float* volume_out, const int volume_out_offset,
+                                    std::vector<CudaDeviceMemoryPitched<float, 3>*>& volume_buf,
                                     const int volDimX,
                                     const int volDimY,
                                     const int volStepXY,
@@ -128,7 +129,7 @@ private:
                                     float epipShift);
 public:
     float sweepPixelsToVolume(const std::vector<int>& index_set,
-                              float* volume, const int volume_offset,
+                              float* volume_out, const int volume_buf,
                               const int volDimX,
                               const int volDimY,
                               const int volStepXY,

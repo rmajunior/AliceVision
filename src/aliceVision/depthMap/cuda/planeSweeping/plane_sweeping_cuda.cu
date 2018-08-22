@@ -905,6 +905,7 @@ float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
                                       const int max_ct,
                                       float* volume_out,
                                       const int volume_offset,
+                                      std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
                                       const cameraStruct& rcam,
                                       const std::vector<cameraStruct>& tcams,
                                       int width, int height,
@@ -918,14 +919,6 @@ float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
                                       float gammaP, bool subPixel, float epipShift)
 {
     float retval = 0.0f;
-
-    int maxDimZ = *std::max_element( nDepthsToSearch.begin(), nDepthsToSearch.end() );
-
-    std::vector<CudaDeviceMemoryPitched<float, 3>*> volSim_dmp( max_ct );
-    for( int ct=0; ct<max_ct; ct++ )
-    {
-        volSim_dmp[ct] = new CudaDeviceMemoryPitched<float, 3>(CudaSize<3>(volDimX, volDimY, maxDimZ));
-    }
 
     testCUDAdeviceNo(CUDAdeviceNo);
 
