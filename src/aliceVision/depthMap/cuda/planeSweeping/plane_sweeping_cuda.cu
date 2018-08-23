@@ -883,10 +883,17 @@ static void ps_computeSimilarityVolume(
         float* ovol_hmh = &volume_out[ct*volume_offset];
         copy( ovol_hmh, volDimX, volDimY, volDimZ, *vol_dmp[ct], tcams[ct].stream );
 #else
-        float* ovol_hmh = &volume_out[ct*volume_offset];
-        copy2D( ovol_hmh, volDimX, volDimY*volDimZ,
-                vol_dmp[ct]->getBuffer(), vol_dmp[ct]->getPitch(),
-                tcams[ct].stream );
+        for( int d=0; d<volDimZ; d++ )
+        {
+            float* src = vol_dmp[ct]->getBuffer();
+            src += ( d * vol_dmp[ct]->getPitch() * volDimY / sizeof(float) );
+
+            float* dst = &volume_out[ct*volume_offset];
+            dst += d*volDimX*volDimY;
+            copy2D( dst, volDimX, volDimY,
+                    src, vol_dmp[ct]->getPitch(),
+                    tcams[ct].stream );
+        }
 #endif
     }
 
