@@ -1043,14 +1043,14 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
 template<class Type, unsigned Dim> void copy(Type* _dst, size_t sx, size_t sy, size_t sz, const CudaDeviceMemoryPitched<Type, Dim>& _src)
 {
   if(Dim >= 3) {
-    for (unsigned int slice=0; slice<sz; slice++)
-    {
-      cudaError_t err = cudaMemcpy2D( _dst + sx * sy * slice,
+    // for (unsigned int slice=0; slice<sz; slice++)
+    // {
+      cudaError_t err = cudaMemcpy2D( _dst,
                                       sx * sizeof (Type),
-                                      (unsigned char*)_src.getBuffer() + slice * _src.stride()[1],
+                                      (unsigned char*)_src.getBuffer(),
                                       _src.stride()[0], // _src.getPitch(),
                                       sx * sizeof (Type),
-                                      sy,
+                                      sy * sz,
                                       cudaMemcpyDeviceToHost);
       if( err != cudaSuccess )
       {
@@ -1058,21 +1058,21 @@ template<class Type, unsigned Dim> void copy(Type* _dst, size_t sx, size_t sy, s
             << "    " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
         throw std::runtime_error("Failed to copy.");
       }
-    }
+    // }
   }
 }
 
 template<class Type, unsigned Dim> void copy(Type* _dst, size_t sx, size_t sy, size_t sz, const CudaDeviceMemoryPitched<Type, Dim>& _src, cudaStream_t stream)
 {
   if(Dim >= 3) {
-    for (unsigned int slice=0; slice<sz; slice++)
-    {
-      cudaError_t err = cudaMemcpy2DAsync( _dst + sx * sy * slice,
+    // for (unsigned int slice=0; slice<sz; slice++)
+    // {
+      cudaError_t err = cudaMemcpy2DAsync( _dst,
                                            sx * sizeof (Type),
-                                           (unsigned char*)_src.getBuffer() + slice * _src.stride()[1],
+                                           (unsigned char*)_src.getBuffer(),
                                            _src.stride()[0], // _src.getPitch(),
                                            sx * sizeof (Type),
-                                           sy,
+                                           sy * sz,
                                            cudaMemcpyDeviceToHost,
                                            stream );
       if( err != cudaSuccess )
@@ -1081,28 +1081,28 @@ template<class Type, unsigned Dim> void copy(Type* _dst, size_t sx, size_t sy, s
             << "    " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
         throw std::runtime_error("Failed to copy.");
       }
-    }
+    // }
   }
 }
 
 template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>& _dst, const Type* _src, size_t sx, size_t sy, size_t sz)
 {
   if(Dim >= 3) {
-    for (unsigned int slice=0; slice<sz; slice++)
-    {
-      cudaError_t err = cudaMemcpy2D( (unsigned char*)_dst.getBuffer() + slice * _dst.stride()[1],
+    // for (unsigned int slice=0; slice<sz; slice++)
+    // {
+      cudaError_t err = cudaMemcpy2D( (unsigned char*)_dst.getBuffer(),
                                       _dst.getPitch(),
-                                      _src + sx * sy * slice,
-                                      sx * sizeof (Type),
+                                      _src,
                                       sx * sizeof(Type),
-                                      sy,
+                                      sx * sizeof(Type),
+                                      sy * sz,
                                       cudaMemcpyHostToDevice);
       if( err != cudaSuccess )
       {
         ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
         throw std::runtime_error( "Failed to copy host to device." );
       }
-    }
+    // }
   }
 }
 
