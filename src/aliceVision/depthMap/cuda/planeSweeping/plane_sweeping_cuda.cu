@@ -806,6 +806,7 @@ void ps_transposeVolume(CudaHostMemoryHeap<unsigned char, 3>* ovol_hmh,
 static void ps_computeSimilarityVolume(
                                 Pyramid& ps_texs_arr,
                                 const int max_ct,
+                                float* volume_out, const int volume_offset,
                                 std::vector<CudaDeviceMemoryPitched<float, 3>*> vol_dmp,
                                 const cameraStruct& rcam,
                                 const std::vector<cameraStruct>& tcams,
@@ -877,6 +878,9 @@ static void ps_computeSimilarityVolume(
         // CHECK_CUDA_ERROR();
 
         // cudaDeviceSynchronize();
+        // copy to host
+        float* ovol_hmh = &volume_out[ct*volume_offset];
+        copy( ovol_hmh, volDimX, volDimY, volDimZ, *vol_dmp[ct], tcams[ct].stream );
     }
 
     // no point in timing - this is async
@@ -914,6 +918,8 @@ void ps_planeSweepingGPUPixelsVolume( Pyramid& ps_texs_arr,
     // compute similarity volume
     ps_computeSimilarityVolume(ps_texs_arr,
                                max_ct,
+                               volume_out,
+                               volume_offset,
                                volSim_dmp,
                                rcam, tcams,
                                width, height,
@@ -924,18 +930,6 @@ void ps_planeSweepingGPUPixelsVolume( Pyramid& ps_texs_arr,
                                wsh, kernelSizeHalf,
                                scale, CUDAdeviceNo, ncamsAllocated, scales,
                                verbose, doUsePixelsDepths, nbest, useTcOrRcPixSize, gammaC, gammaP, subPixel, epipShift);
-
-    for( int ct=0; ct<max_ct; ct++ )
-    {
-        //--------------------------------------------------------------------------------------------------
-        // copy to host
-        float* ovol_hmh = &volume_out[ct*volume_offset];
-        const int volDimZ = nDepthsToSearch[ct];
-        copy( ovol_hmh, volDimX, volDimY, volDimZ, *volSim_dmp[ct], tcams[ct].stream );
-
-        // pr_printfDeviceMemoryInfo();
-        // printf("total size of volume map in GPU memory: %f\n",(float)d_volSim.getBytes()/(1024.0f*1024.0f));
-    }
 }
 
 void ps_filterVisTVolume(CudaHostMemoryHeap<unsigned int, 3>* iovol_hmh, int volDimX, int volDimY, int volDimZ,
