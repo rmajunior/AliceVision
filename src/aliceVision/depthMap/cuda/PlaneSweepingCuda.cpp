@@ -849,6 +849,11 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
     }
 
     // sweep
+    float volumeMBinGPUMem = 0.0f;
+    for( auto slice : volSim_dmp ) 
+        volumeMBinGPUMem += std::max( volumeMBinGPUMem, (float)slice->getBytes() );
+    volumeMBinGPUMem /= (1024.0f * 1024.0f);
+
     volumeMBinGPUMem = ps_planeSweepingGPUPixelsVolume(
             ps_texs_arr, // indexed with tcams[].camId
             max_ct,          // ct=0..max_ct ; volume=&volume_in[ct*volume_offset]
