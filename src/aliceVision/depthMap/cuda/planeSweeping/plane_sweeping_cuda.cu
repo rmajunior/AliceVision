@@ -879,8 +879,15 @@ static void ps_computeSimilarityVolume(
 
         // cudaDeviceSynchronize();
         // copy to host
+#if 0
         float* ovol_hmh = &volume_out[ct*volume_offset];
         copy( ovol_hmh, volDimX, volDimY, volDimZ, *vol_dmp[ct], tcams[ct].stream );
+#else
+        float* ovol_hmh = &volume_out[ct*volume_offset];
+        copy2D( ovol_hmh, volDimX, volDimY*volDimZ,
+                vol_dmp[ct]->getBuffer(), vol_dmp[ct]->getPitch(),
+                tcams[ct].stream );
+#endif
     }
 
     // no point in timing - this is async

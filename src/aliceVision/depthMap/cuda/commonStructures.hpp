@@ -1106,6 +1106,25 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
   }
 }
 
+template<class Type> void copy2D( Type* dst, size_t sx, size_t sy,
+                                  Type* src, size_t src_pitch,
+                                  cudaStream_t stream )
+{
+    cudaError_t err = cudaMemcpy2DAsync( dst,
+                                         sx * sizeof(Type),
+                                         src,
+                                         src_pitch,
+                                         sx * sizeof(Type),
+                                         sy,
+                                         cudaMemcpyDeviceToHost,
+                                         stream );
+    if( err != cudaSuccess )
+    {
+        ALICEVISION_LOG_ERROR( "Failed to copy : " << std::endl
+            << "    " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error("Failed to copy.");
+    }
+}
 struct cameraStructBase
 {
     float  P[12];
