@@ -15,7 +15,7 @@ extern void ps_initCameraMatrix( cameraStructBase& base );
 
 extern float3 ps_getDeviceMemoryInfo();
 
-float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
+void ps_planeSweepingGPUPixelsVolume( Pyramid& ps_texs_arr,
                                       const int max_ct,
                                       float* volume_out,
                                       const int volume_offset,

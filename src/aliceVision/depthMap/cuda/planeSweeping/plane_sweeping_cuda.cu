@@ -883,7 +883,7 @@ static void ps_computeSimilarityVolume(
     // if(verbose) printf("ps_computeSimilarityVolume elapsed time: %f ms \n", toc(tall));
 }
 
-float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
+void ps_planeSweepingGPUPixelsVolume( Pyramid& ps_texs_arr,
                                       const int max_ct,
                                       float* volume_out,
                                       const int volume_offset,
@@ -900,19 +900,14 @@ float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
                                       bool doUsePixelsDepths, int nbest, bool useTcOrRcPixSize, float gammaC,
                                       float gammaP, bool subPixel, float epipShift)
 {
-    float retval = 0.0f;
-
     if(verbose)
         pr_printfDeviceMemoryInfo();
 
     if(verbose)
     {
-        float sz = 0;
-        for( int ct=0; ct<max_ct; ct++ )
-        {
-            sz += (float)volSim_dmp[ct]->getBytes() / (1024.0f * 1024.0f);
-        }
-        printf("total size of volume maps for %d images in GPU memory: %f MB\n", max_ct, sz );
+        float mbytes = max_ct * volSim_dmp[0]->getBytes();
+        mbytes /= (1024.0f * 1024.0f);
+        printf("%s: total size of volume maps for %d images in GPU memory: approx %4.2f MB\n", __FUNCTION__, max_ct, mbytes );
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -940,11 +935,7 @@ float ps_planeSweepingGPUPixelsVolume(Pyramid& ps_texs_arr,
 
         // pr_printfDeviceMemoryInfo();
         // printf("total size of volume map in GPU memory: %f\n",(float)d_volSim.getBytes()/(1024.0f*1024.0f));
-
-        retval = std::max( retval, (float)volSim_dmp[ct]->getBytes() / (1024.0f * 1024.0f) );
     }
-
-    return retval;
 }
 
 void ps_filterVisTVolume(CudaHostMemoryHeap<unsigned int, 3>* iovol_hmh, int volDimX, int volDimY, int volDimZ,

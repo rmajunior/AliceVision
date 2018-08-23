@@ -790,8 +790,6 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
                                               int scale, int step,
                                               float epipShift )
 {
-    float volumeMBinGPUMem = 0.0f;
-
     // long t1 = clock();
     clock_t t1 = tic();
 
@@ -848,13 +846,7 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
         depths_dev[ct] = new CudaDeviceMemory<float>( depth_data, nDepthsToSearch[ct], tcams[ct].stream );
     }
 
-    // sweep
-    float volumeMBinGPUMem = 0.0f;
-    for( auto slice : volSim_dmp ) 
-        volumeMBinGPUMem += std::max( volumeMBinGPUMem, (float)slice->getBytes() );
-    volumeMBinGPUMem /= (1024.0f * 1024.0f);
-
-    volumeMBinGPUMem = ps_planeSweepingGPUPixelsVolume(
+    ps_planeSweepingGPUPixelsVolume(
             ps_texs_arr, // indexed with tcams[].camId
             max_ct,          // ct=0..max_ct ; volume=&volume_in[ct*volume_offset]
             volume_out,
@@ -882,6 +874,14 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
         // mvsUtils::printfElapsedTime(t1);
         printf("sweepPixelsToVolumeSubset elapsed time: %f ms \n", toc(t1));
     }
+
+    // sweep
+    float volumeMBinGPUMem = 0.0f;
+    for( auto slice : volSim_dmp ) 
+        volumeMBinGPUMem = std::max( volumeMBinGPUMem, (float)slice->getBytes() );
+    volumeMBinGPUMem /= (1024.0f * 1024.0f);
+
+    printf("%s: reporting that we need %4.2f bytes for result volume per image.\n", __FUNCTION__, volumeMBinGPUMem );
 
     return volumeMBinGPUMem;
 }
