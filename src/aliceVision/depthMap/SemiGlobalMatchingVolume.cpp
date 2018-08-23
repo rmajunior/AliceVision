@@ -24,7 +24,11 @@ SemiGlobalMatchingVolume::SemiGlobalMatchingVolume(float _volGpuMB, int _volDimX
     {
         Point3d dmi = sp->cps->getDeviceMemoryInfo();
         if(sp->mp->verbose)
-            ALICEVISION_LOG_DEBUG("GPU memory : free: " << dmi.x << ", total: " << dmi.y << ", used: " << dmi.z);
+        {
+            int devid;
+            cudaGetDevice( &devid );
+            ALICEVISION_LOG_DEBUG("GPU memory on device " << devid << ": free: " << dmi.x << ", total: " << dmi.y << ", used: " << dmi.z);
+        }
         volStepZ = 1;
         float volumeMB = volGpuMB;
         while(4.0f * volumeMB > dmi.x)
@@ -38,7 +42,11 @@ SemiGlobalMatchingVolume::SemiGlobalMatchingVolume(float _volGpuMB, int _volDimX
         if(volStepZ > 1)
         {
             if(sp->mp->verbose)
-                ALICEVISION_LOG_WARNING("Low GPU memory volume step Z: " << volStepZ);
+            {
+                int devid;
+                cudaGetDevice( &devid );
+                ALICEVISION_LOG_WARNING("GPU memory on device " << devid << ": free: " << dmi.x << ", total: " << dmi.y << ", used: " << dmi.z << std::endl << "    Low GPU memory volume step Z: " << volStepZ);
+            }
         }
     }
 

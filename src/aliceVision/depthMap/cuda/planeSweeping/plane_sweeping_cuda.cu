@@ -243,8 +243,12 @@ void ps_deviceAllocate(Pyramid& ps_texs_arr, int ncams, int width, int height, i
     cudaGetDeviceCount(&num_gpus);
 
 
-    int outval = cudaSetDevice(deviceId);
-    printf("CUDA device no %i for %i\n", outval, deviceId);
+    cudaError_t outval = cudaSetDevice(deviceId);
+    if( outval != cudaSuccess )
+    {
+        ALICEVISION_LOG_ERROR( "Failed to set CUDA device " << deviceId << " for thread: " << cudaGetErrorString(outval) );
+    }
+    printf("Setting CUDA device to %i\n", deviceId);
 
     // printf("ps_deviceAllocate\n");
     // pr_printfDeviceMemoryInfo();

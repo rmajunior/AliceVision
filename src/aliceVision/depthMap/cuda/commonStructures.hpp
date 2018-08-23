@@ -313,7 +313,9 @@ public:
             cudaError_t err = cudaMallocPitch<Type>(&buffer, &pitch, size[0] * sizeof(Type), size[1]);
             if( err != cudaSuccess )
             {
-                ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
+                int devid;
+                cudaGetDevice( &devid );
+                ALICEVISION_LOG_ERROR( "Device " << devid << " alloc failed, " << cudaGetErrorString(err) );
             }
         }
         else if(Dim == 3)
@@ -326,7 +328,9 @@ public:
             cudaError_t err = cudaMalloc3D(&pitchDevPtr, extent);
             if( err != cudaSuccess )
             {
-                ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
+                int devid;
+                cudaGetDevice( &devid );
+                ALICEVISION_LOG_ERROR( "Device " << devid << " alloc failed, " << cudaGetErrorString(err) );
             }
             buffer = (Type*)pitchDevPtr.ptr;
             pitch = pitchDevPtr.pitch;
