@@ -21,8 +21,11 @@ SemiGlobalMatchingVolume::SemiGlobalMatchingVolume(float _volGpuMB, int _volDimX
     volDimY = _volDimY;
     volDimZ = _volDimZ;
 
+    std::cerr << __FUNCTION__ << " it seems that we must allocate " << volGpuMB << " MB of device memory per image" << std::endl;
+
     {
         Point3d dmi = sp->cps->getDeviceMemoryInfo();
+        std::cerr << __FUNCTION__ << " it seems that we have " << dmi.x << " MB of device memory available" << std::endl;
         if(sp->mp->verbose)
         {
             int devid;

@@ -598,6 +598,8 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
     // recompute to all depths
     volumeMBinGPUMem = ((volumeMBinGPUMem / (float)depthsTcamsLimits[0].y) * (float)volDimZ);
 
+    std::cerr << __FUNCTION__ << ": we believe that we must allocate 1-image memory " << (float)volDimZ / (float)depthsTcamsLimits[0].y << " times (which makes no sense)" << std::endl;
+
     SemiGlobalMatchingVolume* svol = new SemiGlobalMatchingVolume(volumeMBinGPUMem, volDimX, volDimY, volDimZ, sp);
     svol->copyVolume( simVolume[0], depthsTcamsLimits[0].x, depthsTcamsLimits[0].y);
 
