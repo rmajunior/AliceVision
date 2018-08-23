@@ -835,6 +835,9 @@ static void ps_computeSimilarityVolume(
         // ps_init_target_camera_matrices(cams[ct+1].param_hst);
     
         //--------------------------------------------------------------------------------------------------
+#if 0
+        // useless - no pixel remains unassigned !
+
         // init similarity volume
         configure_init_kernel_2Dfloat();
 
@@ -849,6 +852,7 @@ static void ps_computeSimilarityVolume(
             ( vol_dmp[ct]->getBuffer(),
             elements,
             255.0f );
+#endif
 
         configure_volume_slice_kernel();
 
@@ -859,34 +863,28 @@ static void ps_computeSimilarityVolume(
 
         dim3 volume_slice_kernel_grid( divUp(xsteps, volume_slice_kernel_block.x),
                                     divUp(ysteps, volume_slice_kernel_block.y),
-                                    min( (int)depths_dev[ct]->getSize(), volDimZ )
-                                    );
+                                    1 );
+                                    // min( (int)depths_dev[ct]->getSize(), volDimZ ));
 
-        volume_slice_kernel
+        for( int d=0; d<volDimZ; d++ )
+        {
+          volume_slice_kernel
             <<<volume_slice_kernel_grid, volume_slice_kernel_block,0,tcams[ct].stream>>>
             ( ps_texs_arr[rcam.camId][scale].tex,
               ps_texs_arr[tcams[ct].camId][scale].tex,
               rcam.param_dev,
               tcams[ct].param_dev,
               depths_dev[ct]->getBuffer(),
+              d,
               width, height,
               wsh,
               gammaC, gammaP, epipShift,
               vol_dmp[ct]->getBuffer(), vol_dmp[ct]->stride()[1], vol_dmp[ct]->stride()[0],
               volStepXY,
               volDimX, volDimY );
-        // CHECK_CUDA_ERROR();
 
-        // cudaDeviceSynchronize();
-        // copy to host
-#if 0
-        float* ovol_hmh = &volume_out[ct*volume_offset];
-        copy( ovol_hmh, volDimX, volDimY, volDimZ, *vol_dmp[ct], tcams[ct].stream );
-#else
-        for( int d=0; d<volDimZ; d++ )
-        {
             float* src = vol_dmp[ct]->getBuffer();
-            src += ( d * vol_dmp[ct]->getPitch() * volDimY / sizeof(float) );
+            // src += ( d * vol_dmp[ct]->getPitch() * volDimY / sizeof(float) );
 
             float* dst = &volume_out[ct*volume_offset];
             dst += d*volDimX*volDimY;
@@ -894,7 +892,6 @@ static void ps_computeSimilarityVolume(
                     src, vol_dmp[ct]->getPitch(),
                     tcams[ct].stream );
         }
-#endif
     }
 
     // no point in timing - this is async
