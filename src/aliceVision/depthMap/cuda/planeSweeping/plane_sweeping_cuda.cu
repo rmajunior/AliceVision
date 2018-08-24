@@ -784,6 +784,7 @@ static void ps_computeSimilarityVolume(
                                 int width, int height,
                                 int volStepXY,
                                 int volDimX, int volDimY,
+                                const int zDimsAtATime,
                                 std::vector<CudaDeviceMemory<float>*> depths_dev,
                                 const std::vector<int>& nDepthsToSearch,
                                 int wsh, int kernelSizeHalf,
@@ -814,13 +815,16 @@ static void ps_computeSimilarityVolume(
         const int xsteps = width / volStepXY;
         const int ysteps = height / volStepXY;
 
-        dim3 volume_slice_kernel_grid( divUp(xsteps, volume_slice_kernel_block.x),
-                                    divUp(ysteps, volume_slice_kernel_block.y),
-                                    1 );
-                                    // min( (int)depths_dev[ct]->getSize(), volDimZ ));
-
-        for( int d=0; d<volDimZ; d++ )
+        for( int startDepth=0; startDepth<volDimZ; startDepth+=zDimsAtATime )
         {
+          const int numPlanesToCopy = ( startDepth+zDimsAtATime < volDimZ )
+                                     ? zDimsAtATime
+                                     : volDimZ - startDepth;
+
+          dim3 volume_slice_kernel_grid( divUp(xsteps, volume_slice_kernel_block.x),
+                                         divUp(ysteps, volume_slice_kernel_block.y),
+                                         numPlanesToCopy );
+
           volume_slice_kernel
             <<<volume_slice_kernel_grid, volume_slice_kernel_block,0,tcams[ct].stream>>>
             ( ps_texs_arr[rcam.camId][scale].tex,
@@ -828,7 +832,7 @@ static void ps_computeSimilarityVolume(
               rcam.param_dev,
               tcams[ct].param_dev,
               depths_dev[ct]->getBuffer(),
-              d,
+              startDepth,
               width, height,
               wsh,
               gammaC, gammaP, epipShift,
@@ -836,14 +840,14 @@ static void ps_computeSimilarityVolume(
               volStepXY,
               volDimX, volDimY );
 
-            float* src = vol_dmp[ct]->getBuffer();
-            // src += ( d * vol_dmp[ct]->getPitch() * volDimY / sizeof(float) );
+          float* src = vol_dmp[ct]->getBuffer();
+          // src += ( d * vol_dmp[ct]->getPitch() * volDimY / sizeof(float) );
 
-            float* dst = &volume_out[ct*volume_offset];
-            dst += d*volDimX*volDimY;
-            copy2D( dst, volDimX, volDimY,
-                    src, vol_dmp[ct]->getPitch(),
-                    tcams[ct].stream );
+          float* dst = &volume_out[ct*volume_offset];
+          dst += startDepth*volDimX*volDimY;
+          copy2D( dst, volDimX, volDimY*numPlanesToCopy,
+                  src, vol_dmp[ct]->getPitch(),
+                  tcams[ct].stream );
         }
     }
 
@@ -860,6 +864,7 @@ void ps_planeSweepingGPUPixelsVolume( Pyramid& ps_texs_arr,
                                       const std::vector<cameraStruct>& tcams,
                                       int width, int height,
                                       int volStepXY, int volDimX, int volDimY,
+                                      const int zDimsAtATime,
                                       std::vector<CudaDeviceMemory<float>*> depths_dev,
                                       const std::vector<int>& nDepthsToSearch,
                                       int wsh, int kernelSizeHalf,
@@ -889,6 +894,7 @@ void ps_planeSweepingGPUPixelsVolume( Pyramid& ps_texs_arr,
                                width, height,
                                volStepXY,
                                volDimX, volDimY,
+                               zDimsAtATime,
                                depths_dev,
                                nDepthsToSearch,
                                wsh, kernelSizeHalf,

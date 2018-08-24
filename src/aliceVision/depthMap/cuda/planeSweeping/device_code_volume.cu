@@ -29,7 +29,7 @@ __global__ void volume_slice_kernel(
                                     const cameraStructBase* rc_cam_s,
                                     const cameraStructBase* tc_cam_s,
                                     float* depths_dev,
-                                    const int d,
+                                    const int startDimZ,
                                     int width, int height, int wsh,
                                     const float gammaC, const float gammaP, const float epipShift,
                                     float* volume, int volume_s, int volume_p,
@@ -38,7 +38,7 @@ __global__ void volume_slice_kernel(
 {
     const int vx = blockIdx.x * blockDim.x + threadIdx.x;
     const int vy = blockIdx.y * blockDim.y + threadIdx.y;
-    // const int vz = blockIdx.z;
+    const int vz = blockIdx.z;
 
     if( vx >= volDimX ) return;
     if( vy >= volDimY ) return;
@@ -46,7 +46,7 @@ __global__ void volume_slice_kernel(
     const int x = vx * volStepXY;
     const int y = vy * volStepXY;
 
-    const float fpPlaneDepth = depths_dev[d];
+    const float fpPlaneDepth = depths_dev[startDimZ+vz];
 
     if( x >= width  ) return;
     if( y >= height ) return;
@@ -73,7 +73,7 @@ __global__ void volume_slice_kernel(
     fsim = fminf(1.0f, fmaxf(0.0f, fsim));
     // int sim = (unsigned char)(fsim * 255.0f); // upcast to int due to atomicMin
 
-    *get3DBufferAt(volume, volume_s, volume_p, vx, vy, 0) = fsim;
+    *get3DBufferAt(volume, volume_s, volume_p, vx, vy, vz) = fsim;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -846,6 +846,8 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
         depths_dev[ct] = new CudaDeviceMemory<float>( depth_data, nDepthsToSearch[ct], tcams[ct].stream );
     }
 
+    const int zDimsAtATime = 1;
+
     ps_planeSweepingGPUPixelsVolume(
             ps_texs_arr, // indexed with tcams[].camId
             max_ct,          // ct=0..max_ct ; volume=&volume_in[ct*volume_offset]
@@ -854,6 +856,7 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
             volSim_dmp,
             rcam, tcams, w, h, volStepXY,
             volDimX, volDimY,
+            zDimsAtATime,
             depths_dev,
             nDepthsToSearch,
             wsh,
