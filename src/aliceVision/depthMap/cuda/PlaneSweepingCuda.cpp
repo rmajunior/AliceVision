@@ -732,6 +732,7 @@ float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
                                               const int volDimX,
                                               const int volDimY,
                                               const int volStepXY,
+                                              const int zDimsAtATime,
                                               const std::vector<std::vector<float> >& depths_in,
                                               int rc,
                                               const StaticVector<int>& tc_in,
@@ -765,7 +766,16 @@ float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
             it++;
         }
 
-        float r = sweepPixelsToVolumeSubset( index_subset, sub_volume_out, volume_offset, volSim_dmp, volDimX, volDimY, volStepXY, depths_in, rc, tc_in, wsh, gammaC, gammaP, scale, step, epipShift );
+        float r = sweepPixelsToVolumeSubset( index_subset,
+                                             sub_volume_out, volume_offset,
+                                             volSim_dmp,
+                                             volDimX, volDimY, volStepXY,
+                                             zDimsAtATime,
+                                             depths_in,
+                                             rc,
+                                             tc_in,
+                                             wsh,
+                                             gammaC, gammaP, scale, step, epipShift );
         retval = std::max( retval, r );
 
         sub_volume_out += ( max_tcs * volume_offset );
@@ -783,6 +793,7 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
                                               const int volDimX,
                                               const int volDimY,
                                               const int volStepXY,
+                                              const int zDimsAtATime,
                                               const std::vector<std::vector<float> >& depths_in,
                                               int rc,
                                               const StaticVector<int>& tc_in,
@@ -845,8 +856,6 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
         const float* depth_data = depths[ct]->data();
         depths_dev[ct] = new CudaDeviceMemory<float>( depth_data, nDepthsToSearch[ct], tcams[ct].stream );
     }
-
-    const int zDimsAtATime = 1;
 
     ps_planeSweepingGPUPixelsVolume(
             ps_texs_arr, // indexed with tcams[].camId

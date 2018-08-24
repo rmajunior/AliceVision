@@ -78,6 +78,7 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
     const int volStepXY = step;
     const int volDimX = w;
     const int volDimY = h;
+    const int zDimsAtATime = 32;
     int maxDimZ = *index_set.begin();
 
     for( auto j : index_set )
@@ -100,39 +101,18 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
         ct++;
     }
 
-#if 0
-    ct = 0;
-    for( auto j : index_set )
-    {
-        // const int volDimZ = rcTcDepths[j].size();
-
-        StaticVector<int> tcams;
-        tcams.push_back(tc[j]);
-
-        // float* ptr = volume_tmp[j];
-        float* ptr = &volume_buf[ ct * volDimX * volDimY * maxDimZ ];
-        volumeMBinGPUMem =
-            sp->cps->sweepPixelsToVolume( ptr,
-                                          volDimX, volDimY,
-                                          volStepXY,
-                                          rcTcDepths[j], rc, wsh, gammaC, gammaP, scale, 1,
-                                          tcams,
-                                          0.0f );
-        ct++;
-    }
-#else
-        const int volume_offset = volDimX * volDimY * maxDimZ;
-        volumeMBinGPUMem =
+    const int volume_offset = volDimX * volDimY * maxDimZ;
+    volumeMBinGPUMem =
             sp->cps->sweepPixelsToVolume( index_set,
                                           volume_buf,
                                           volume_offset,
                                           volDimX, volDimY,
                                           volStepXY,
+                                          zDimsAtATime,
                                           rcTcDepths,
                                           rc, tc,
                                           wsh, gammaC, gammaP, scale, 1,
                                           0.0f);
-#endif
 
     for( auto j : index_set )
     {
