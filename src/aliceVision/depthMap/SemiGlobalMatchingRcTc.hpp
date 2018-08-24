@@ -33,8 +33,6 @@ public:
                                    float gammaP );
 
 private:
-    StaticVector<Voxel>* getPixels();
-
     const std::vector<int> index_set;
     const SemiGlobalMatchingParams* const sp;
 

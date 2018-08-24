@@ -6,6 +6,7 @@
 
 #include "SemiGlobalMatchingRcTc.hpp"
 #include <aliceVision/mvsUtils/common.hpp>
+#include <aliceVision/system/nvtx.hpp>
 
 namespace aliceVision {
 namespace depthMap {
@@ -37,33 +38,6 @@ SemiGlobalMatchingRcTc::SemiGlobalMatchingRcTc(
 SemiGlobalMatchingRcTc::~SemiGlobalMatchingRcTc()
 {
     //
-}
-
-StaticVector<Voxel>* SemiGlobalMatchingRcTc::getPixels()
-{
-    StaticVector<Voxel>* pixels = new StaticVector<Voxel>();
-
-    pixels->reserve(w * h);
-
-    for(int y = 0; y < h; y++)
-    {
-        for(int x = 0; x < w; x++)
-        {
-            if(rcSilhoueteMap == nullptr)
-            {
-                pixels->push_back(Voxel(x * step, y * step, 0));
-            }
-            else
-            {
-                bool isBackgroundPixel = (*rcSilhoueteMap)[y * w + x];
-                if(!isBackgroundPixel)
-                {
-                    pixels->push_back(Voxel(x * step, y * step, 0));
-                }
-            }
-        }
-    }
-    return pixels;
 }
 
 void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
@@ -114,6 +88,11 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
                                           wsh, gammaC, gammaP, scale, 1,
                                           0.0f);
 
+    /*
+     * TODO: This conversion operation on the host consumes a lot of time,
+     *       about 1/3 of the actual computation. Work to avoid it.
+     */
+    nvtxPushA( "host-copy of volume", __FILE__, __LINE__ );
     for( auto j : index_set )
     {
         const int volDimZ = rcTcDepths[j].size();
@@ -151,6 +130,7 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
             }
         }
     }
+    nvtxPop( "host-copy of volume" );
 }
 
 } // namespace depthMap
