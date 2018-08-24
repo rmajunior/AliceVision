@@ -40,9 +40,6 @@ namespace depthMap {
 static bool volume_slice_kernel_block_set = false;
 static dim3 volume_slice_kernel_block( 32, 1, 1 ); // minimal default settings
 
-static bool init_kernel_2Dfloat_block_set = false;
-static dim3 init_kernel_2Dfloat_block( 32, 1, 1 );
-
 // Round a / b to nearest higher integer value.
 inline unsigned int divUp(unsigned int a, unsigned int b) {
   return (a % b != 0) ? (a / b + 1) : (a / b);
@@ -71,32 +68,6 @@ __host__ void configure_volume_slice_kernel( )
         {
             volume_slice_kernel_block.x = 32;
             volume_slice_kernel_block.y = divUp( recommendedBlockSize, 32 );
-        }
-    }
-}
-
-__host__ void configure_init_kernel_2Dfloat( )
-{
-    if( init_kernel_2Dfloat_block_set ) return;
-    init_kernel_2Dfloat_block_set = true;
-
-    int recommendedMinGridSize;
-    int recommendedBlockSize;
-    cudaError_t err;
-    err = cudaOccupancyMaxPotentialBlockSize( &recommendedMinGridSize,
-                                              &recommendedBlockSize,
-                                              init_kernel_2Dfloat,
-                                              0, // dynamic shared mem size: none used
-                                              0 ); // no block size limit, 1 thread OK
-    if( err != cudaSuccess )
-    {
-        ALICEVISION_LOG_DEBUG( "cudaOccupancyMaxPotentialBlockSize failed for kernel init_kernel_2Dfloat, using defaults" );
-    }
-    else
-    {
-        if( recommendedBlockSize > 32 )
-        {
-            init_kernel_2Dfloat_block.x = recommendedBlockSize;
         }
     }
 }
@@ -835,24 +806,6 @@ static void ps_computeSimilarityVolume(
         // ps_init_target_camera_matrices(cams[ct+1].param_hst);
     
         //--------------------------------------------------------------------------------------------------
-#if 0
-        // useless - no pixel remains unassigned !
-
-        // init similarity volume
-        configure_init_kernel_2Dfloat();
-
-        /* pitch is always a multiple of 32 bytes (CC 2 and above is at least 128).
-         * Since our elements are int-sized (4 bytes), we can initialize the pitch as well.
-         */
-        const size_t elements        = vol_dmp[ct]->getBytes() / sizeof(float);
-        const int    init_kernel_2Dfloat_grid = divUp( elements, init_kernel_2Dfloat_block.x );
-
-        init_kernel_2Dfloat
-            <<<init_kernel_2Dfloat_grid, init_kernel_2Dfloat_block,0,tcams[ct].stream>>>
-            ( vol_dmp[ct]->getBuffer(),
-            elements,
-            255.0f );
-#endif
 
         configure_volume_slice_kernel();
 

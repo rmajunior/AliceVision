@@ -176,13 +176,6 @@ __global__ void volume_initVolume_kernel(T* volume, int volume_s, int volume_p, 
     }
 }
 
-__global__ void init_kernel_2Dfloat( float* buffer, int elements, float value )
-{
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    if( x >= elements ) return;
-    buffer[x] = value;
-}
-
 __global__ void volume_updateMinXSlice_kernel(unsigned char* volume, int volume_s, int volume_p,
                                               unsigned char* xySliceBestSim, int xySliceBestSim_p, int* xySliceBestZ,
                                               int xySliceBestZ_p, int volDimX, int volDimY, int volDimZ, int vz)
