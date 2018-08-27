@@ -85,6 +85,7 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
                                           zDimsAtATime,
                                           rcTcDepths,
                                           rc, tc,
+                                          rcSilhoueteMap,
                                           wsh, gammaC, gammaP, scale, 1,
                                           0.0f);
 

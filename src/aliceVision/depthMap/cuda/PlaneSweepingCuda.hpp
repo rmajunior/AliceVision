@@ -84,7 +84,9 @@ public:
 
     void cameraToDevice( int rc, const StaticVector<int>& tcams );
 
-    int addCam(int rc, int scale, const char* calling_func );
+    int addCam( int rc, int scale,
+                StaticVectorBool* rcSilhoueteMap,
+                const char* calling_func );
 
     void getMinMaxdepths(int rc, const StaticVector<int>& tcams, float& minDepth, float& midDepth, float& maxDepth);
     void getAverageMinMaxdepths(float& avMinDist, float& avMaxDist);
@@ -125,6 +127,7 @@ private:
                                     const std::vector<std::vector<float> >& depths,
                                     int rc,
                                     const StaticVector<int>& tcams,
+                                    StaticVectorBool* rcSilhoueteMap,
                                     int wsh, float gammaC, float gammaP,
                                     int scale, int step,
                                     float epipShift);
@@ -134,10 +137,11 @@ public:
                               const int volDimX,
                               const int volDimY,
                               const int volStepXY,
-                                              const int zDimsAtATime,
+                              const int zDimsAtATime,
                               const std::vector<std::vector<float> >& depths,
                               int rc,
                               const StaticVector<int>& tcams,
+                              StaticVectorBool* rcSilhoueteMap,
                               int wsh, float gammaC, float gammaP,
                               int scale, int step,
                               float epipShift);
