@@ -75,11 +75,23 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
         ct++;
     }
 
+    /* request this device to allocate
+     *   (max_img - 1) * X * Y * dims_at_a_time * sizeof(float)
+     * of device memory. max_img include the rc images, therefore -1.
+     */
+    std::vector<CudaDeviceMemoryPitched<float, 3>*> volume_tmp_on_gpu;
+    sp->cps->allocTempVolume( volume_tmp_on_gpu,
+                              sp->cps->maxImagesInGPU() - 1,
+                              volDimX,
+                              volDimY,
+                              zDimsAtATime );
+
     const int volume_offset = volDimX * volDimY * maxDimZ;
     volumeMBinGPUMem =
             sp->cps->sweepPixelsToVolume( index_set,
                                           volume_buf,
                                           volume_offset,
+                                          volume_tmp_on_gpu,
                                           volDimX, volDimY,
                                           volStepXY,
                                           zDimsAtATime,
@@ -88,6 +100,8 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
                                           rcSilhoueteMap,
                                           wsh, gammaC, gammaP, scale, 1,
                                           0.0f);
+
+    sp->cps->freeTempVolume( volume_tmp_on_gpu );
 
     /*
      * TODO: This conversion operation on the host consumes a lot of time,

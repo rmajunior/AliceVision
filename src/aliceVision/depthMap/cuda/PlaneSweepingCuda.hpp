@@ -75,6 +75,8 @@ public:
     bool subPixel;
     int  varianceWSH;
 
+    inline int maxImagesInGPU() const { return _nImgsInGPUAtTime; }
+
     // float gammaC,gammaP;
     mvsUtils::ImagesCache* ic;
 
@@ -132,8 +134,17 @@ private:
                                     int scale, int step,
                                     float epipShift);
 public:
+    /* pre-processing for sweepPixelsToVolume */
+    void allocTempVolume( std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
+                          const int max_tcs,
+                          const int volDimX,
+                          const int volDimY,
+                          const int zDimsAtATime );
+    /* post-processing for sweepPixelsToVolume */
+    void freeTempVolume( std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp );
     float sweepPixelsToVolume(const std::vector<int>& index_set,
                               float* volume_out, const int volume_buf,
+                              std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
                               const int volDimX,
                               const int volDimY,
                               const int volStepXY,

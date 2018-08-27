@@ -744,6 +744,24 @@ bool PlaneSweepingCuda::refineRcTcDepthMap(bool useTcOrRcPixSize, int nStepsToRe
     return true;
 }
 
+void PlaneSweepingCuda::allocTempVolume( std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
+                                         const int max_tcs,
+                                         const int volDimX,
+                                         const int volDimY,
+                                         const int zDimsAtATime )
+{
+    volSim_dmp.resize( max_tcs );
+    for( int ct=0; ct<max_tcs; ct++ )
+    {
+        volSim_dmp[ct] = new CudaDeviceMemoryPitched<float, 3>(CudaSize<3>(volDimX, volDimY, zDimsAtATime));
+    }
+}
+
+void PlaneSweepingCuda::freeTempVolume( std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp )
+{
+    for( auto ptr: volSim_dmp ) delete ptr;
+}
+
 /* Be very careful with volume indexes:
  * volume is indexed with the same index as tc. The values of tc can be quite different.
  * depths is indexed with the index_set elements
@@ -751,6 +769,7 @@ bool PlaneSweepingCuda::refineRcTcDepthMap(bool useTcOrRcPixSize, int nStepsToRe
 float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
                                               float* volume_out,
                                               const int volume_offset,
+                                              std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
                                               const int volDimX,
                                               const int volDimY,
                                               const int volStepXY,
@@ -769,15 +788,6 @@ float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
     float* sub_volume_out = volume_out;
     auto it = index_set.begin();
     auto end = index_set.end();
-
-    size_t maxDimZ = 0;
-    for( auto dpth : depths_in ) maxDimZ = std::max( maxDimZ, dpth.size() );
-
-    std::vector<CudaDeviceMemoryPitched<float, 3>*> volSim_dmp( max_tcs );
-    for( int ct=0; ct<max_tcs; ct++ )
-    {
-        volSim_dmp[ct] = new CudaDeviceMemoryPitched<float, 3>(CudaSize<3>(volDimX, volDimY, maxDimZ));
-    }
 
     while( it != end )
     {
@@ -805,8 +815,6 @@ float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
         sub_volume_out += ( max_tcs * volume_offset );
     }
     cudaDeviceSynchronize();
-
-    for( auto ptr: volSim_dmp ) delete ptr;
 
     return retval;
 }

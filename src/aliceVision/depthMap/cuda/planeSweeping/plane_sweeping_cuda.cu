@@ -794,6 +794,7 @@ static void ps_computeSimilarityVolume(
                                 float epipShift)
 {
     // clock_t tall = tic();
+    configure_volume_slice_kernel();
 
     for( int ct=0; ct<max_ct; ct++ )
     {
@@ -808,9 +809,6 @@ static void ps_computeSimilarityVolume(
     
         //--------------------------------------------------------------------------------------------------
 
-        configure_volume_slice_kernel();
-
-        //--------------------------------------------------------------------------------------------------
         // compute similarity volume
         const int xsteps = width / volStepXY;
         const int ysteps = height / volStepXY;
@@ -820,6 +818,15 @@ static void ps_computeSimilarityVolume(
           const int numPlanesToCopy = ( startDepth+zDimsAtATime < volDimZ )
                                      ? zDimsAtATime
                                      : volDimZ - startDepth;
+          if( verbose )
+          {
+            printf("Starting volume_slice_kernel with %d planes in the volume. "
+                   "VolDmp size(x,y,z)=%d %d %d\n",
+                   numPlanesToCopy,
+                   (int)vol_dmp[ct]->getSize()[0],
+                   (int)vol_dmp[ct]->getSize()[1],
+                   (int)vol_dmp[ct]->getSize()[2] );
+          }
 
           dim3 volume_slice_kernel_grid( divUp(xsteps, volume_slice_kernel_block.x),
                                          divUp(ysteps, volume_slice_kernel_block.y),
