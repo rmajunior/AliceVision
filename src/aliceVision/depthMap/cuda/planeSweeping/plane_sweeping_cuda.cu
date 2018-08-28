@@ -356,19 +356,16 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
 
         if(varianceWsh > 0)
         {
-            // cudaBindTextureToArray(r4tex, ps_texs_arr[camId][0].arr->getArray(), cudaCreateChannelDesc<uchar4>());
             compute_varLofLABtoW_kernel
                 <<<grid, block>>>
                 ( ps_texs_arr[camId][0].tex,
                   tex_lab_dmp.getBuffer(), tex_lab_dmp.stride()[0],
                   w, h, varianceWsh);
             cudaThreadSynchronize();
-            // cudaUnbindTexture(r4tex);
             copy((*ps_texs_arr[camId][0].arr), tex_lab_dmp);
-        };
+        }
     }
 
-    // cudaBindTextureToArray(r4tex, ps_texs_arr[camId][0].arr->getArray(), cudaCreateChannelDesc<uchar4>());
 
     // for each scale
     for(int scale = 1; scale < scales; scale++)
@@ -395,24 +392,19 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
 
         if(varianceWsh > 0)
         {
-            // cudaUnbindTexture(r4tex);
-            // cudaBindTextureToArray(r4tex, ps_texs_arr[camId][scale].arr->getArray(), cudaCreateChannelDesc<uchar4>());
             compute_varLofLABtoW_kernel
                 <<<grid, block>>>
                 ( ps_texs_arr[camId][scale].tex,
                 tex_lab_dmp.getBuffer(), tex_lab_dmp.stride()[0],
                 w / (scale + 1), h / (scale + 1), varianceWsh);
             cudaThreadSynchronize();
-            // cudaUnbindTexture(r4tex);
             copy((*ps_texs_arr[camId][scale].arr), tex_lab_dmp);
-            // cudaBindTextureToArray(r4tex, ps_texs_arr[camId][0].arr->getArray(), cudaCreateChannelDesc<uchar4>());
         };
 
         cudaUnbindTexture(gaussianTex);
         cudaFreeArray(gaussian_arr);
     };
 
-    // cudaUnbindTexture(r4tex);
 
     CHECK_CUDA_ERROR();
 }
