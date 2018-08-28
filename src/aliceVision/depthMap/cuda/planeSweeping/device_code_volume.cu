@@ -1080,51 +1080,5 @@ __global__ void volume_filter_VisTVolume_kernel(unsigned int* ovolume, int ovolu
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-__global__ void volume_filter_enforceTWeightInVolume_kernel(unsigned int* ovolume, int ovolume_s, int ovolume_p,
-                                                            int volDimX, int volDimY, int volDimZ, int vz, int K)
-{
-    int vx = blockIdx.x * blockDim.x + threadIdx.x;
-    int vy = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if((vx >= 0) && (vx < volDimX) && (vy >= 0) && (vy < volDimY) && (vz >= 0) && (vz < volDimZ))
-    {
-        unsigned int* ovolume_zyx = get3DBufferAt(ovolume, ovolume_s, ovolume_p, vx, vy, vz);
-        unsigned int val = *ovolume_zyx;
-        unsigned int TvalOld = (unsigned int)(val >> 16);    // T - edge
-        unsigned int VvalOld = (unsigned int)(val & 0xFFFF); // visibility
-
-        unsigned int VvalFront = 0;
-        unsigned int VvalBack = 0;
-
-        for(int xp = vx - K; xp <= vx + K; xp++)
-        {
-            unsigned int valN = tex2D(sliceTexUInt, xp, vy);
-            // unsigned int TvalN = (unsigned  int)(valN >> 16); //T - edge
-            unsigned int VvalN = (unsigned int)(valN & 0xFFFF); // visibility
-            if(xp < vx)
-            {
-                VvalFront += VvalN;
-            }
-            if(xp > vx)
-            {
-                VvalBack += VvalN;
-            }
-        }
-
-        float fVvalFront = (float)VvalFront / (float)K;
-        float fVvalBack = (float)VvalBack / (float)K;
-
-        if((fVvalFront - fVvalBack > 500.0f) && (fVvalBack / fVvalFront) < 0.5f)
-        {
-            TvalOld = min(65534, TvalOld + 10000);
-        }
-
-        val = (TvalOld << 16) | (VvalOld & 0xFFFF);
-        *ovolume_zyx = val;
-    }
-}
-
 } // namespace depthMap
 } // namespace aliceVision

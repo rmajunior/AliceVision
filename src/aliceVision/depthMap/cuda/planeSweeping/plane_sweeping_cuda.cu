@@ -413,52 +413,6 @@ void ps_deviceDeallocate(Pyramid& ps_texs_arr, int CUDAdeviceNo, int ncams, int 
     }
 }
 
-void ps_aggregatePathVolume2(CudaDeviceMemoryPitched<unsigned char, 3>& vol_dmp, int volDimX, int volDimY,
-                             int volDimZ, float P1, float P2, bool transfer)
-{
-
-    ///////////////////////////////////////////////////////////////////////////////
-    // setup block and grid
-    int block_size = 8;
-    dim3 blockvol(block_size, block_size, 1);
-    dim3 gridvol(divUp(volDimX, block_size), divUp(volDimY, block_size), 1);
-
-    int block_sizenmxs = 64;
-    dim3 blockvolrow(block_sizenmxs, 1, 1);
-    dim3 gridvolrow(divUp(volDimX, block_sizenmxs), 1, 1);
-    dim3 gridvolrowAllCols(divUp(volDimX, block_sizenmxs), volDimY, 1);
-
-    CudaDeviceMemoryPitched<unsigned char, 2> xyslice_dmp(CudaSize<2>(volDimX, volDimY));
-    CudaArray<unsigned char, 2> xyslice_arr(CudaSize<2>(volDimX, volDimY));
-    CudaDeviceMemoryPitched<unsigned char, 2> xsliceBestInColSim_dmp(CudaSize<2>(volDimX, 1));
-    // CudaDeviceMemoryPitched<int,2>    xsliceBestInColRow_dmp(CudaSize<2>(volDimX, 1));
-
-    for(int z = 0; z < volDimZ; z++)
-    {
-        volume_agregateCostVolumeAtZ_kernel<<<gridvolrowAllCols, blockvolrow>>>(
-            vol_dmp.getBuffer(), vol_dmp.stride()[1], vol_dmp.stride()[0], xsliceBestInColSim_dmp.getBuffer(), volDimX,
-            volDimY, volDimZ, z, P1, P2, transfer);
-        cudaThreadSynchronize();
-        CHECK_CUDA_ERROR();
-
-        volume_getVolumeXYSliceAtZ_kernel<unsigned char, unsigned char><<<gridvol, blockvol>>>(
-            xyslice_dmp.getBuffer(), xyslice_dmp.stride()[0], vol_dmp.getBuffer(), vol_dmp.stride()[1], vol_dmp.stride()[0],
-            volDimX, volDimY, volDimZ, z);
-        cudaThreadSynchronize();
-        CHECK_CUDA_ERROR();
-        copy((xyslice_arr), xyslice_dmp);
-        cudaBindTextureToArray(sliceTexUChar, xyslice_arr.getArray(), cudaCreateChannelDesc<unsigned char>());
-        volume_computeBestXSlice_kernel<<<gridvolrow, blockvolrow>>>(xsliceBestInColSim_dmp.getBuffer(),
-                                                                     // xsliceBestInColRow_dmp.getBuffer(),
-                                                                     volDimX, volDimY);
-        cudaThreadSynchronize();
-        CHECK_CUDA_ERROR();
-        cudaUnbindTexture(sliceTexUChar);
-    };
-
-    // pr_printfDeviceMemoryInfo();
-}
-
 /**
  * @param[inout] d_volSimT similarity volume with some transposition applied
  */
@@ -959,102 +913,6 @@ void ps_filterVisTVolume(CudaHostMemoryHeap<unsigned int, 3>* iovol_hmh, int vol
         printf("elapsed time: %f ms \n", toc(tall));
 };
 
-void ps_enforceTweigthInVolumeInternal(CudaDeviceMemoryPitched<unsigned int, 3>& ivol_dmp,
-                                       CudaDeviceMemoryPitched<unsigned int, 3>& ovol_dmp, int volDimX, int volDimY,
-                                       int volDimZ, bool verbose)
-{
-    int block_size = 8;
-    dim3 blockvol(block_size, block_size, 1);
-    dim3 gridvol(divUp(volDimX, block_size), divUp(volDimY, block_size), 1);
-
-    CudaDeviceMemoryPitched<unsigned int, 2> xyslice_dmp(CudaSize<2>(volDimX, volDimY));
-    CudaArray<unsigned int, 2> xyslice_arr(CudaSize<2>(volDimX, volDimY));
-
-    for(int z = 0; z < volDimZ; z++)
-    {
-        volume_getVolumeXYSliceAtZ_kernel<unsigned int, unsigned int><<<gridvol, blockvol>>>(
-            xyslice_dmp.getBuffer(), xyslice_dmp.stride()[0], ivol_dmp.getBuffer(), ivol_dmp.stride()[1],
-            ivol_dmp.stride()[0], volDimX, volDimY, volDimZ, z);
-        cudaThreadSynchronize();
-
-        copy((xyslice_arr), xyslice_dmp);
-        cudaBindTextureToArray(sliceTexUInt, xyslice_arr.getArray(), cudaCreateChannelDesc<unsigned int>());
-        volume_filter_enforceTWeightInVolume_kernel<<<gridvol, blockvol>>>(
-            ovol_dmp.getBuffer(), ovol_dmp.stride()[1], ovol_dmp.stride()[0], volDimX, volDimY, volDimZ, z, 3);
-        cudaThreadSynchronize();
-        CHECK_CUDA_ERROR();
-        cudaUnbindTexture(sliceTexUInt);
-    }
-}
-
-void ps_enforceTweigthInVolume(CudaHostMemoryHeap<unsigned int, 3>* iovol_hmh, int volDimX, int volDimY, int volDimZ,
-                               bool verbose)
-{
-    clock_t tall = tic();
-
-    CudaDeviceMemoryPitched<unsigned int, 3> ivol_dmp(*iovol_hmh);
-
-    int dimTrnX = 2;
-    int dimTrnY = 1;
-    int dimTrnZ = 0;
-
-    int dimsTrn[3];
-    dimsTrn[0] = dimTrnX;
-    dimsTrn[1] = dimTrnY;
-    dimsTrn[2] = dimTrnZ;
-    int volDims[3];
-    volDims[0] = volDimX;
-    volDims[1] = volDimY;
-    volDims[2] = volDimZ;
-    int dimsTri[3];
-    dimsTri[dimTrnX] = 0;
-    dimsTri[dimTrnY] = 1;
-    dimsTri[dimTrnZ] = 2;
-
-    ///////////////////////////////////////////////////////////////////////////////
-    // setup block and grid
-    int block_size = 8;
-    dim3 block(block_size, block_size, 1);
-    dim3 grid(divUp(volDimX, block_size), divUp(volDimY, block_size), 1);
-
-    dim3 blockT(block_size, block_size, 1);
-    dim3 gridT(divUp(volDims[dimsTrn[0]], block_size), divUp(volDims[dimsTrn[1]], block_size), 1);
-
-    //--------------------------------------------------------------------------------------------------
-    // transpose volume
-    CudaDeviceMemoryPitched<unsigned int, 3> tvol_dmp(
-        CudaSize<3>(volDims[dimsTrn[0]], volDims[dimsTrn[1]], volDims[dimsTrn[2]]));
-    for(int z = 0; z < volDimZ; z++)
-    {
-        volume_transposeVolume_kernel<unsigned int><<<grid, block>>>(
-            tvol_dmp.getBuffer(), tvol_dmp.stride()[1], tvol_dmp.stride()[0], ivol_dmp.getBuffer(), ivol_dmp.stride()[1],
-            ivol_dmp.stride()[0], volDimX, volDimY, volDimZ, dimTrnX, dimTrnY, dimTrnZ, z);
-    };
-    cudaThreadSynchronize();
-    CHECK_CUDA_ERROR();
-
-    CudaDeviceMemoryPitched<unsigned int, 3> otvol_dmp(tvol_dmp);
-    ps_enforceTweigthInVolumeInternal(tvol_dmp, otvol_dmp, volDims[dimsTrn[0]], volDims[dimsTrn[1]],
-                                      volDims[dimsTrn[2]], verbose);
-
-    for(int zT = 0; zT < volDims[dimsTrn[2]]; zT++)
-    {
-        volume_transposeVolume_kernel<unsigned int><<<gridT, blockT>>>(
-            ivol_dmp.getBuffer(), ivol_dmp.stride()[1], ivol_dmp.stride()[0], otvol_dmp.getBuffer(), otvol_dmp.stride()[1],
-            otvol_dmp.stride()[0], volDims[dimsTrn[0]], volDims[dimsTrn[1]], volDims[dimsTrn[2]], dimsTri[0], dimsTri[1],
-            dimsTri[2], zT);
-    };
-    cudaThreadSynchronize();
-    CHECK_CUDA_ERROR();
-
-    //--------------------------------------------------------------------------------------------------
-    // copy to host
-    copy((*iovol_hmh), ivol_dmp);
-
-    if(verbose)
-        printf("elapsed time: %f ms \n", toc(tall));
-};
-
 void ps_computeDP1Volume(CudaHostMemoryHeap<int, 3>* ovol_hmh, CudaHostMemoryHeap<unsigned int, 3>* ivol_hmh,
                          int volDimX, int volDimY, int volDimZ, bool verbose)
 {
@@ -1304,20 +1162,15 @@ void ps_refineRcDepthMap(Pyramid& ps_texs_arr, float* osimMap_hmh,
 {
     ///////////////////////////////////////////////////////////////////////////////
     // setup block and grid
-    int block_size = 16;
-    dim3 block(block_size, block_size, 1);
-    dim3 grid(divUp(width, block_size), divUp(height, block_size), 1);
+    dim3 block(16, 16, 1);
+    dim3 grid(divUp(width, block.x), divUp(height, block.y), 1);
 
     ps_init_reference_camera_matrices(cams[0].param_hst);
     ps_texs_arr[cams[0].camId][scale].arr->bindToTexture( r4tex );
-//     cudaBindTextureToArray(r4tex, ps_texs_arr[cams[0].camId][scale].arr->getArray(),
-//                            cudaCreateChannelDesc<uchar4>());
 
     int c = 1;
     ps_init_target_camera_matrices(cams[c].param_hst);
     ps_texs_arr[cams[c].camId][scale].arr->bindToTexture( t4tex );
-//     cudaBindTextureToArray(t4tex, ps_texs_arr[cams[c].camId][scale].arr->getArray(),
-//                            cudaCreateChannelDesc<uchar4>());
 
     CudaDeviceMemoryPitched<float3, 2> lastThreeSimsMap(CudaSize<2>(width, height));
     CudaDeviceMemoryPitched<float, 2> simMap_dmp(CudaSize<2>(width, height));
@@ -1340,7 +1193,6 @@ void ps_refineRcDepthMap(Pyramid& ps_texs_arr, float* osimMap_hmh,
     refine_setLastThreeSimsMap_kernel<<<grid, block>>>(lastThreeSimsMap.getBuffer(), lastThreeSimsMap.stride()[0],
                                                        bestSimMap_dmp.getBuffer(), bestSimMap_dmp.stride()[0], width,
                                                        height, 1);
-    cudaThreadSynchronize();
 
     refine_compYKNCCSimMapPatch_kernel<<<grid, block>>>(
         simMap_dmp.getBuffer(), simMap_dmp.stride()[0], bestDptMap_dmp.getBuffer(), bestDptMap_dmp.stride()[0], width,
@@ -1348,7 +1200,6 @@ void ps_refineRcDepthMap(Pyramid& ps_texs_arr, float* osimMap_hmh,
     cudaThreadSynchronize();
     refine_setLastThreeSimsMap_kernel<<<grid, block>>>(lastThreeSimsMap.getBuffer(), lastThreeSimsMap.stride()[0],
                                                        simMap_dmp.getBuffer(), simMap_dmp.stride()[0], width, height, 0);
-    cudaThreadSynchronize();
 
     refine_compYKNCCSimMapPatch_kernel<<<grid, block>>>(
         simMap_dmp.getBuffer(), simMap_dmp.stride()[0], bestDptMap_dmp.getBuffer(), bestDptMap_dmp.stride()[0], width,
@@ -1356,7 +1207,6 @@ void ps_refineRcDepthMap(Pyramid& ps_texs_arr, float* osimMap_hmh,
     cudaThreadSynchronize();
     refine_setLastThreeSimsMap_kernel<<<grid, block>>>(lastThreeSimsMap.getBuffer(), lastThreeSimsMap.stride()[0],
                                                        simMap_dmp.getBuffer(), simMap_dmp.stride()[0], width, height, 2);
-    cudaThreadSynchronize();
 
     refine_computeDepthSimMapFromLastThreeSimsMap_kernel<<<grid, block>>>(
         bestSimMap_dmp.getBuffer(), bestSimMap_dmp.stride()[0], bestDptMap_dmp.getBuffer(), bestDptMap_dmp.stride()[0],
