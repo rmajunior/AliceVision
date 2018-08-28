@@ -565,9 +565,26 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
     const int volDimX = w;
     const int volDimY = h;
     const int volDimZ = depths->size();
-    const int zDimsAtATime = 32; // important for device memory use!
 
     sp->cps->cameraToDevice( rc, tcams );
+
+// #define FORCE_ZDIM_LIMIT 32
+#undef  FORCE_ZDIM_LIMIT
+#ifndef FORCE_ZDIM_LIMIT
+    const long gpu_bytes_reqd_per_plane = volDimX * volDimY * sizeof(float);
+    const long gpu_bytes_free = sp->cps->getDeviceMemoryInfo().x * 1024 * 1024;
+    int        zDimsAtATime = depths->size();
+    const int  camsAtATime  = tcams.size();
+    if( gpu_bytes_reqd_per_plane * zDimsAtATime * camsAtATime > gpu_bytes_free )
+    {
+        while( zDimsAtATime > 1 && gpu_bytes_reqd_per_plane * zDimsAtATime * camsAtATime > gpu_bytes_free )
+        {
+            zDimsAtATime /= 2;
+        }
+    }
+#else
+    int zDimsAtATime = FORCE_ZDIM_LIMIT; // for example FORCE_ZDIM_LIMIT=32
+#endif
 
     StaticVectorBool* rcSilhoueteMap = nullptr;
     if(sp->useSilhouetteMaskCodedByColor)
@@ -647,6 +664,7 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
             }
         }
         delete rcSilhoueteMap;
+        rcSilhoueteMap = nullptr;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

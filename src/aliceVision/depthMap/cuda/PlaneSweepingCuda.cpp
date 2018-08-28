@@ -6,6 +6,7 @@
 
 #include "PlaneSweepingCuda.hpp"
 #include <aliceVision/system/Logger.hpp>
+#include <aliceVision/system/nvtx.hpp>
 #include <aliceVision/mvsData/Matrix3x3.hpp>
 #include <aliceVision/mvsData/Matrix3x4.hpp>
 #include <aliceVision/mvsData/OrientedPoint.hpp>
@@ -830,6 +831,7 @@ void PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& index
                                               int scale, int step,
                                               float epipShift )
 {
+    nvtxPushA( "sweepPixelsToVolumeSubset A" , __FILE__, __LINE__ );
     // long t1 = clock();
     clock_t t1 = tic();
 
@@ -885,6 +887,8 @@ void PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& index
         const float* depth_data = depths[ct]->data();
         depths_dev[ct] = new CudaDeviceMemory<float>( depth_data, nDepthsToSearch[ct], tcams[ct].stream );
     }
+    nvtxPop( "sweepPixelsToVolumeSubset A" );
+    nvtxPushA( "sweepPixelsToVolumeSubset B" , __FILE__, __LINE__ );
 
     ps_planeSweepingGPUPixelsVolume(
             ps_texs_arr, // indexed with tcams[].camId
@@ -904,6 +908,8 @@ void PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& index
             _nImgsInGPUAtTime,
             _scales, _verbose, false, _nbest,
             true, gammaC, gammaP, subPixel, epipShift);
+    nvtxPop( "sweepPixelsToVolumeSubset B" );
+    nvtxPushA( "sweepPixelsToVolumeSubset C" , __FILE__, __LINE__ );
 
     for( auto ptr : depths_dev )
     {
@@ -915,6 +921,7 @@ void PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& index
         // mvsUtils::printfElapsedTime(t1);
         printf("sweepPixelsToVolumeSubset elapsed time: %f ms \n", toc(t1));
     }
+    nvtxPop( "sweepPixelsToVolumeSubset C" );
 }
 
 /**

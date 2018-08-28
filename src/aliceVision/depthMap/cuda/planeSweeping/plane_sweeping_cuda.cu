@@ -816,8 +816,8 @@ static void ps_computeSimilarityVolume(
         for( int startDepth=0; startDepth<volDimZ; startDepth+=zDimsAtATime )
         {
           const int numPlanesToCopy = ( startDepth+zDimsAtATime < volDimZ )
-                                     ? zDimsAtATime
-                                     : volDimZ - startDepth;
+                                      ? zDimsAtATime
+                                      : volDimZ - startDepth;
           if( verbose )
           {
             printf("Starting volume_slice_kernel with %d planes in the volume. "
@@ -881,10 +881,9 @@ void ps_planeSweepingGPUPixelsVolume( Pyramid& ps_texs_arr,
                                       float gammaP, bool subPixel, float epipShift)
 {
     if(verbose)
+    {
         pr_printfDeviceMemoryInfo();
 
-    if(verbose)
-    {
         float mbytes = max_ct * volSim_dmp[0]->getBytes();
         mbytes /= (1024.0f * 1024.0f);
         printf("%s: total size of volume maps for %d images in GPU memory: approx %4.2f MB\n", __FUNCTION__, max_ct, mbytes );

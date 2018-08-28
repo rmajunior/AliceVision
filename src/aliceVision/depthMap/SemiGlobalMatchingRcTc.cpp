@@ -66,7 +66,15 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
         maxDimZ = std::max( maxDimZ, volDimZ );
     }
 
-    float* volume_buf = new float[ _index_set.size() * volDimX * volDimY * maxDimZ ];
+    float* volume_buf;
+    bool   volume_buf_pinned = true;
+    cudaError_t err = cudaMallocHost( &volume_buf, _index_set.size() * volDimX * volDimY * maxDimZ * sizeof(float) );
+    if( err != cudaSuccess )
+    {
+        ALICEVISION_LOG_WARNING( "Failed to allocate " << _index_set.size() * volDimX * volDimY * maxDimZ * sizeof(float) << " bytes of CUDA host (pinned) memory, " << cudaGetErrorString(err) );
+        volume_buf = new float[ _index_set.size() * volDimX * volDimY * maxDimZ ];
+        volume_buf_pinned = false;
+    }
 
     std::map<int,float*> volume_tmp;
 
@@ -108,7 +116,10 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
         }
     }
 
-    delete [] volume_buf;
+    if( volume_buf_pinned )
+        cudaFreeHost( volume_buf );
+    else
+        delete [] volume_buf;
 
     // delete volume_tmp;
 
