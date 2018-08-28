@@ -258,6 +258,24 @@ public:
         return *this;
     }
 
+    // void bindToTexture( texture<Type, 2, cudaReadModeNormalizedFloat>& texref )
+    // void bindToTexture( texture<Type, 2, cudaReadModeElementType>& texref )
+    template<typename texturetype>
+    void bindToTexture( texturetype& texref )
+    {
+        cudaError_t err = cudaBindTexture2D( 0, // offset
+                                             texref,
+                                             this->getBuffer(),
+                                             cudaCreateChannelDesc<Type>(),
+                                             getSize()[0],
+                                             getSize()[1],
+                                             getPitch() );
+        if( err != cudaSuccess )
+        {
+            ALICEVISION_LOG_ERROR( "Failed to bind texture reference to pitched memory, " << cudaGetErrorString( err ) );
+        }
+    }
+
     // see below with copy() functions
     void copyFrom( const CudaHostMemoryHeap<Type, Dim>& _src );
 
@@ -1159,7 +1177,7 @@ struct ps_parameters
 
 struct TexturedArray
 {
-    CudaArray<uchar4, 2>* arr;
+    CudaDeviceMemoryPitched<uchar4, 2>* arr;
     cudaTextureObject_t tex;
 };
 typedef std::vector<std::vector<TexturedArray> > Pyramid;
