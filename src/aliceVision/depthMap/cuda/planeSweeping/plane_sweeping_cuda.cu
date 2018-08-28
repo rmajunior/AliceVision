@@ -346,9 +346,9 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
     {
         copy(*ps_texs_arr[camId][0].arr, (*cam.tex_rgba_hmh));
 
-        int block_size = 8;
-        dim3 block(block_size, block_size, 1);
-        dim3 grid(divUp(w, block_size), divUp(h, block_size), 1);
+        // int block_size = 8;
+        const dim3 block(32, 2, 1);
+        const dim3 grid(divUp(w, block.x), divUp(h, block.y), 1);
         rgb2lab_kernel<<<grid, block>>>(ps_texs_arr[camId][0].arr->getBuffer(), ps_texs_arr[camId][0].arr->stride()[0], w, h);
 
         if(varianceWsh > 0)
@@ -371,37 +371,32 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
         cudaArray* gaussian_arr = ps_create_gaussian_arr(1.0f, radius);
         cudaBindTextureToArray(gaussianTex, gaussian_arr, cudaCreateChannelDesc<float>());
 
-        int block_size = 8;
-        dim3 block(block_size, block_size, 1);
-        dim3 grid(divUp(w / (scale + 1), block_size), divUp(h / (scale + 1), block_size), 1);
+        // int block_size = 8;
+        const dim3 block(32, 2, 1);
+        const dim3 grid(divUp(w / (scale + 1), block.x), divUp(h / (scale + 1), block.y), 1);
 
-        CudaDeviceMemoryPitched<uchar4, 2> tex_lab_dmp(CudaSize<2>(w / (scale + 1), h / (scale + 1)));
-        // downscale_bilateral_smooth_lab_kernel<<<grid, block>>>(
-        downscale_gauss_smooth_lab_kernel<<<grid, block>>>(
-            // downscale_mean_smooth_lab_kernel<<<grid, block>>>(
-            ps_texs_arr[camId][0].tex,
-            tex_lab_dmp.getBuffer(), tex_lab_dmp.stride()[0],
-            w / (scale + 1), h / (scale + 1), scale + 1,
-            radius //, 15.5f
-            );
-        cudaThreadSynchronize();
-        copy((*ps_texs_arr[camId][scale].arr), tex_lab_dmp);
+        downscale_gauss_smooth_lab_kernel
+            <<<grid, block>>>
+            ( ps_texs_arr[camId][0].tex,
+              ps_texs_arr[camId][scale].arr->getBuffer(),
+              ps_texs_arr[camId][scale].arr->stride()[0],
+              w / (scale + 1), h / (scale + 1), scale + 1,
+              radius //, 15.5f
+              );
 
         if(varianceWsh > 0)
         {
             compute_varLofLABtoW_kernel
                 <<<grid, block>>>
                 ( ps_texs_arr[camId][scale].tex,
-                tex_lab_dmp.getBuffer(), tex_lab_dmp.stride()[0],
-                w / (scale + 1), h / (scale + 1), varianceWsh);
-            cudaThreadSynchronize();
-            copy((*ps_texs_arr[camId][scale].arr), tex_lab_dmp);
-        };
+                  ps_texs_arr[camId][scale].arr->getBuffer(),
+                  ps_texs_arr[camId][scale].arr->stride()[0],
+                  w / (scale + 1), h / (scale + 1), varianceWsh);
+        }
 
         cudaUnbindTexture(gaussianTex);
         cudaFreeArray(gaussian_arr);
     };
-
 
     CHECK_CUDA_ERROR();
 }
@@ -653,7 +648,7 @@ void ps_updateAggrVolume(CudaDeviceMemoryPitched<unsigned char, 3>& volAgr_dmp,
 
     if(verbose)
         printf("ps_updateAggrVolume done\n");
-};
+}
 
 
 /**
@@ -989,7 +984,7 @@ void ps_enforceTweigthInVolumeInternal(CudaDeviceMemoryPitched<unsigned int, 3>&
         cudaThreadSynchronize();
         CHECK_CUDA_ERROR();
         cudaUnbindTexture(sliceTexUInt);
-    };
+    }
 }
 
 void ps_enforceTweigthInVolume(CudaHostMemoryHeap<unsigned int, 3>* iovol_hmh, int volDimX, int volDimY, int volDimZ,
