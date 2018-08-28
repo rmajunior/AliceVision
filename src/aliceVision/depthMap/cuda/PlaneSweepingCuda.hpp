@@ -119,20 +119,20 @@ public:
 
 private:
     /* Needed to compensate for _nImgsInGPUAtTime that are smaller than |index_set|-1 */
-    float sweepPixelsToVolumeSubset(const std::vector<int>& index_set,
-                                    float* volume_out, const int volume_out_offset,
-                                    std::vector<CudaDeviceMemoryPitched<float, 3>*>& volume_buf,
-                                    const int volDimX,
-                                    const int volDimY,
-                                    const int volStepXY,
-                                    const int zDimsAtATime,
-                                    const std::vector<std::vector<float> >& depths,
-                                    int rc,
-                                    const StaticVector<int>& tcams,
-                                    StaticVectorBool* rcSilhoueteMap,
-                                    int wsh, float gammaC, float gammaP,
-                                    int scale, int step,
-                                    float epipShift);
+    void sweepPixelsToVolumeSubset(const std::vector<int>& index_set,
+                                   float* volume_out, const int volume_out_offset,
+                                   std::vector<CudaDeviceMemoryPitched<float, 3>*>& volume_buf,
+                                   const int volDimX,
+                                   const int volDimY,
+                                   const int volStepXY,
+                                   const int zDimsAtATime,
+                                   const std::vector<std::vector<float> >& depths,
+                                   int rc,
+                                   const StaticVector<int>& tcams,
+                                   StaticVectorBool* rcSilhoueteMap,
+                                   int wsh, float gammaC, float gammaP,
+                                   int scale, int step,
+                                   float epipShift);
 public:
     /* pre-processing for sweepPixelsToVolume */
     void allocTempVolume( std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
@@ -142,7 +142,7 @@ public:
                           const int zDimsAtATime );
     /* post-processing for sweepPixelsToVolume */
     void freeTempVolume( std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp );
-    float sweepPixelsToVolume(const std::vector<int>& index_set,
+    void sweepPixelsToVolume( const std::vector<int>& index_set,
                               float* volume_out, const int volume_buf,
                               std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
                               const int volDimX,

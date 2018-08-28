@@ -565,7 +565,7 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
     const int volDimX = w;
     const int volDimY = h;
     const int volDimZ = depths->size();
-    float volumeMBinGPUMem = 0.0f;
+    const int zDimsAtATime = 32; // important for device memory use!
 
     sp->cps->cameraToDevice( rc, tcams );
 
@@ -578,56 +578,63 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
         sp->cps->getSilhoueteMap(rcSilhoueteMap, scale, step, sp->silhouetteMaskColor, rc);
     }
 
+    std::cerr << "In " << __FUNCTION__ << std::endl
+              << "    rc camera " << rc << " has depth " << depths->size() << std::endl;
     std::vector<std::vector<float> > subDepths( tcams.size() );
     for( int c = 0; c < tcams.size(); c++ )
     {
         getSubDepthsForTCam( c, subDepths[c] );
+        std::cerr << "    tc camera " << tcams[c] << " uses " << subDepths[c].size() << " depths" << std::endl;
     }
 
     std::vector<StaticVector<unsigned char> > simVolume;
     simVolume.resize( tcams.size() );
 
+    /* request this device to allocate
+     *   (max_img - 1) * X * Y * dims_at_a_time * sizeof(float)
+     * of device memory.
+     */
+    printf("Allocating %d times %d %d %d\n", tcams.size(),
+                                             volDimX,
+                                             volDimY,
+                                             zDimsAtATime );
+    std::vector<CudaDeviceMemoryPitched<float, 3>*> volume_tmp_on_gpu;
+    sp->cps->allocTempVolume( volume_tmp_on_gpu,
+                              tcams.size(),
+                              volDimX,
+                              volDimY,
+                              zDimsAtATime );
+
+    std::vector<int> index_set( tcams.size() );
+    for(int c = 0; c < tcams.size(); c++)
     {
-        std::vector<int> index_set( 1 );
-        index_set[0] = 0;
-
-        SemiGlobalMatchingRcTc srt( index_set, subDepths, rc, tcams, scale, step, sp, rcSilhoueteMap);
-        srt.computeDepthSimMapVolume( simVolume, volumeMBinGPUMem, wsh, gammaC, gammaP);
+        index_set[c] = c;
     }
+    SemiGlobalMatchingRcTc srt( index_set, subDepths, rc, tcams, scale, step, zDimsAtATime, sp, rcSilhoueteMap );
+    srt.computeDepthSimMapVolume( simVolume, volume_tmp_on_gpu, wsh, gammaC, gammaP );
 
-    // recompute to all depths
-    volumeMBinGPUMem = ((volumeMBinGPUMem / (float)depthsTcamsLimits[0].y) * (float)volDimZ);
+    sp->cps->freeTempVolume( volume_tmp_on_gpu );
 
-    std::cerr << __FUNCTION__ << ": we believe that we must allocate 1-image memory " << (float)volDimZ / (float)depthsTcamsLimits[0].y << " times because we want to scan " << depthsTcamsLimits[0].y << " depth levels but have only space for " << volDimZ <<" (which makes no sense)" << std::endl;
-
-    SemiGlobalMatchingVolume* svol = new SemiGlobalMatchingVolume(volumeMBinGPUMem, volDimX, volDimY, volDimZ, sp);
-    svol->copyVolume( simVolume[0], depthsTcamsLimits[0].x, depthsTcamsLimits[0].y);
-
-    std::vector<int> index_set( tcams.size() - 1 );
-    for(int c = 1; c < tcams.size(); c++)
-    {
-        index_set[c-1] = c;
-    }
-
-    SemiGlobalMatchingRcTc srt( index_set, subDepths, rc, tcams, scale, step, sp, rcSilhoueteMap );
-    srt.computeDepthSimMapVolume( simVolume, volumeMBinGPUMem, wsh, gammaC, gammaP );
-    svol->addVolumeSecondMin( index_set, simVolume, depthsTcamsLimits );
+    index_set.erase( index_set.begin() );
+    SemiGlobalMatchingVolume svol( volDimX, volDimY, volDimZ, zDimsAtATime, sp );
+    svol.copyVolume( simVolume[0], depthsTcamsLimits[0].x, depthsTcamsLimits[0].y);
+    svol.addVolumeSecondMin( index_set, simVolume, depthsTcamsLimits );
 
     // Reduction of 'volume' (X, Y, Z) into 'volumeStepZ' (X, Y, Z/step)
-    svol->cloneVolumeSecondStepZ();
+    svol.cloneVolumeSecondStepZ();
 
     // Filter on the 3D volume to weight voxels based on their neighborhood strongness.
     // So it downweights local minimums that are not supported by their neighborhood.
     if(sp->doSGMoptimizeVolume) // this is here for experimental reason ... to show how SGGC work on non
                                 // optimized depthmaps ... it must equals to true in normal case
     {
-        svol->SGMoptimizeVolumeStepZ(rc, step, scale);
+        svol.SGMoptimizeVolumeStepZ(rc, step, scale);
     }
 
     // For each pixel: choose the voxel with the minimal similarity value
     int zborder = 2;
-    StaticVector<IdValue>* volumeBestIdVal = svol->getOrigVolumeBestIdValFromVolumeStepZ(zborder);
-    delete svol;
+    StaticVector<IdValue>* volumeBestIdVal = svol.getOrigVolumeBestIdValFromVolumeStepZ(zborder);
+    svol.freeMem();
 
     if(rcSilhoueteMap != nullptr)
     {

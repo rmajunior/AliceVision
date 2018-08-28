@@ -12,23 +12,25 @@ namespace aliceVision {
 namespace depthMap {
 
 SemiGlobalMatchingRcTc::SemiGlobalMatchingRcTc(
-            const std::vector<int>& _index_set,
+            const std::vector<int>& index_set,
             const std::vector<std::vector<float> >& _rcTcDepths,
             int _rc,
             const StaticVector<int>& _tc,
-            int _scale,
-            int _step,
+            int scale,
+            int step,
+            int zDimsAtATime,
             SemiGlobalMatchingParams* _sp,
             StaticVectorBool* _rcSilhoueteMap)
-    : index_set( _index_set )
+    : _index_set( index_set )
     , sp( _sp )
     , rc( _rc )
     , tc( _tc )
-    , scale( _scale )
-    , step( _step )
-    , w( sp->mp->getWidth(rc) / (scale * step) )
-    , h( sp->mp->getHeight(rc) / (scale * step) )
+    , _scale( scale )
+    , _step( step )
+    , _w( sp->mp->getWidth(rc) / (scale * step) )
+    , _h( sp->mp->getHeight(rc) / (scale * step) )
     , rcTcDepths( _rcTcDepths )
+    , _zDimsAtATime( zDimsAtATime )
 {
     epipShift = 0.0f;
 
@@ -42,20 +44,20 @@ SemiGlobalMatchingRcTc::~SemiGlobalMatchingRcTc()
 
 void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
         std::vector<StaticVector<unsigned char> >& volume,
-        float& volumeMBinGPUMem,
+        std::vector<CudaDeviceMemoryPitched<float, 3>*>& volume_tmp_on_gpu,
+        // float& volumeMBinGPUMem,
         int wsh,
         float gammaC,
         float gammaP)
 {
     const long tall = clock();
 
-    const int volStepXY = step;
-    const int volDimX = w;
-    const int volDimY = h;
-    const int zDimsAtATime = 32;
-    int maxDimZ = *index_set.begin();
+    const int volStepXY = _step;
+    const int volDimX   = _w;
+    const int volDimY   = _h;
+    int maxDimZ = *_index_set.begin();
 
-    for( auto j : index_set )
+    for( auto j : _index_set )
     {
         const int volDimZ = rcTcDepths[j].size();
 
@@ -64,51 +66,38 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
         maxDimZ = std::max( maxDimZ, volDimZ );
     }
 
-    float* volume_buf = new float[ index_set.size() * volDimX * volDimY * maxDimZ ];
+    float* volume_buf = new float[ _index_set.size() * volDimX * volDimY * maxDimZ ];
 
     std::map<int,float*> volume_tmp;
 
     int ct = 0;
-    for( auto j : index_set )
+    for( auto j : _index_set )
     {
         volume_tmp.emplace( j, &volume_buf[ct * volDimX * volDimY * maxDimZ] );
         ct++;
     }
 
-    /* request this device to allocate
-     *   (max_img - 1) * X * Y * dims_at_a_time * sizeof(float)
-     * of device memory. max_img include the rc images, therefore -1.
-     */
-    std::vector<CudaDeviceMemoryPitched<float, 3>*> volume_tmp_on_gpu;
-    sp->cps->allocTempVolume( volume_tmp_on_gpu,
-                              sp->cps->maxImagesInGPU() - 1,
-                              volDimX,
-                              volDimY,
-                              zDimsAtATime );
-
     const int volume_offset = volDimX * volDimY * maxDimZ;
-    volumeMBinGPUMem =
-            sp->cps->sweepPixelsToVolume( index_set,
+    // volumeMBinGPUMem =
+            sp->cps->sweepPixelsToVolume( _index_set,
                                           volume_buf,
                                           volume_offset,
                                           volume_tmp_on_gpu,
                                           volDimX, volDimY,
                                           volStepXY,
-                                          zDimsAtATime,
+                                          _zDimsAtATime,
                                           rcTcDepths,
                                           rc, tc,
                                           rcSilhoueteMap,
-                                          wsh, gammaC, gammaP, scale, 1,
+                                          wsh, gammaC, gammaP, _scale, 1,
                                           0.0f);
-
-    sp->cps->freeTempVolume( volume_tmp_on_gpu );
 
     /*
      * TODO: This conversion operation on the host consumes a lot of time,
      *       about 1/3 of the actual computation. Work to avoid it.
      */
     nvtxPushA( "host-copy of volume", __FILE__, __LINE__ );
-    for( auto j : index_set )
+    for( auto j : _index_set )
     {
         const int volDimZ = rcTcDepths[j].size();
 
@@ -126,7 +115,7 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
     if(sp->mp->verbose)
         mvsUtils::printfElapsedTime(tall, "SemiGlobalMatchingRcTc::computeDepthSimMapVolume ");
 
-    for( auto j : index_set )
+    for( auto j : _index_set )
     {
         const int volDimZ = rcTcDepths[j].size();
 

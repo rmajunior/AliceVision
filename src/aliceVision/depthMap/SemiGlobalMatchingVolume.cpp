@@ -12,35 +12,35 @@
 namespace aliceVision {
 namespace depthMap {
 
-SemiGlobalMatchingVolume::SemiGlobalMatchingVolume(float _volGpuMB, int _volDimX, int _volDimY, int _volDimZ, SemiGlobalMatchingParams* _sp)
+SemiGlobalMatchingVolume::SemiGlobalMatchingVolume(int _volDimX, int _volDimY, int _volDimZ, int zDimsAtATime, SemiGlobalMatchingParams* _sp)
+    : sp( _sp )
+    , volDimX(  _volDimX )
+    , volDimY(  _volDimY )
+    , volDimZ(  _volDimZ )
+    , volStepZ( 1 )
+    , _volume( nullptr )
+    , _volumeSecondBest( nullptr )
+    , _volumeStepZ( nullptr )
+    , _volumeBestZ( nullptr )
 {
-    sp = _sp;
-
-    volGpuMB = _volGpuMB;
-    volDimX = _volDimX;
-    volDimY = _volDimY;
-    volDimZ = _volDimZ;
-
-    std::cerr << __FUNCTION__ << " it seems that we must allocate " << volGpuMB << " MB of device memory per image" << std::endl;
-
     {
         Point3d dmi = sp->cps->getDeviceMemoryInfo();
         std::cerr << __FUNCTION__ << " it seems that we have " << dmi.x << " MB of device memory available" << std::endl;
+
         if(sp->mp->verbose)
         {
             int devid;
             cudaGetDevice( &devid );
             ALICEVISION_LOG_DEBUG("GPU memory on device " << devid << ": free: " << dmi.x << ", total: " << dmi.y << ", used: " << dmi.z);
         }
-        volStepZ = 1;
-        float volumeMB = volGpuMB;
-        while(4.0f * volumeMB > dmi.x)
+        float volumeMB = ( _volDimX * _volDimY * zDimsAtATime * sizeof(float) ) / ( 1024.0f*1024.0f );
+        while(volumeMB > dmi.x)
         {
             volStepZ++;
-            volumeMB = (volGpuMB / (float)volDimZ) * (volDimZ / volStepZ);
+            volumeMB = ( _volDimX * _volDimY * zDimsAtATime/volStepZ * sizeof(float) ) / ( 1024.0f*1024.0f );
         }
         if(sp->mp->verbose)
-            ALICEVISION_LOG_DEBUG("GPU memory volume: " <<  (4.0f * volumeMB));
+            ALICEVISION_LOG_DEBUG("GPU memory volume: " <<  volumeMB );
 
         if(volStepZ > 1)
         {
@@ -53,72 +53,30 @@ SemiGlobalMatchingVolume::SemiGlobalMatchingVolume(float _volGpuMB, int _volDimX
         }
     }
 
-    _volume = new StaticVector<unsigned char>();
-    _volume->reserve(volDimX * volDimY * volDimZ);
-    _volume->resize_with(volDimX * volDimY * volDimZ, 255);
+    _volume = new StaticVector<unsigned char>( volDimX * volDimY * volDimZ, 255 );
 
-    _volumeSecondBest = new StaticVector<unsigned char>();
-    _volumeSecondBest->reserve(volDimX * volDimY * volDimZ);
-    _volumeSecondBest->resize_with(volDimX * volDimY * volDimZ, 255);
+    _volumeSecondBest = new StaticVector<unsigned char>( volDimX * volDimY * volDimZ, 255 );
 
-    _volumeStepZ = new StaticVector<unsigned char>();
-    _volumeStepZ->reserve(volDimX * volDimY * (volDimZ / volStepZ));
-    _volumeStepZ->resize_with(volDimX * volDimY * (volDimZ / volStepZ), 255);
+    _volumeStepZ = new StaticVector<unsigned char>( volDimX * volDimY * (volDimZ / volStepZ), 255 );
 
-    _volumeBestZ = new StaticVector<int>();
-    _volumeBestZ->reserve(volDimX * volDimY * (volDimZ / volStepZ));
-    _volumeBestZ->resize_with(volDimX * volDimY * (volDimZ / volStepZ), -1);
+    _volumeBestZ = new StaticVector<int>( volDimX * volDimY * (volDimZ / volStepZ), -1 );
 }
 
 SemiGlobalMatchingVolume::~SemiGlobalMatchingVolume()
 {
-    delete _volume;
-    delete _volumeStepZ;
-    delete _volumeBestZ;
+    freeMem();
 }
 
-/**
- * @brief Reduction of the similarity volume on the Z axis.
- *        (X, Y, Z) volume is reduced to (X, Y, Z/step).
- *        Inside each chunk of 'step' values, we keep the best similarity value
- *        in 'volumeStepZ' and store the original Z index in 'volumeBestZ'.
- */
-void SemiGlobalMatchingVolume::cloneVolumeStepZ()
+void SemiGlobalMatchingVolume::freeMem()
 {
-    long tall = clock();
-
-    //TODO: use a local variable for _volumeStepZ (instead of a member) and replace _volume
-    _volumeStepZ->resize_with(volDimX * volDimY * (volDimZ / volStepZ), 255);
-    _volumeBestZ->resize_with(volDimX * volDimY * (volDimZ / volStepZ), -1);
-    unsigned char* _volumePtr = _volume->getDataWritable().data();
-    unsigned char* _volumeStepZPtr = _volumeStepZ->getDataWritable().data();
-    int* _volumeBestZPtr = _volumeBestZ->getDataWritable().data();
-    for(int z = 0; z < volDimZ; z++)
-    {
-        for(int y = 0; y < volDimY; y++)
-        {
-            for(int x = 0; x < volDimX; x++)
-            {
-                if((z / volStepZ) < (volDimZ / volStepZ))
-                {
-                    int offs = (z / volStepZ) * volDimX * volDimY + y * volDimX + x;
-                    unsigned char oldSim = _volumeStepZPtr[offs];
-                    unsigned char newSim = _volumePtr[z * volDimX * volDimY + y * volDimX + x];
-                    if(newSim <= oldSim)
-                    {
-                        _volumeStepZPtr[offs] = newSim;
-                        _volumeBestZPtr[offs] = z;
-                    }
-                }
-            }
-        }
-    }
-
-    delete _volume;
-    _volume = nullptr;
-
-    if(sp->mp->verbose)
-        mvsUtils::printfElapsedTime(tall, "SemiGlobalMatchingVolume::cloneVolumeStepZ ");
+    if( _volume )           delete _volume;
+    if( _volumeSecondBest ) delete _volumeSecondBest;
+    if( _volumeStepZ )      delete _volumeStepZ;
+    if( _volumeBestZ )      delete _volumeBestZ;
+    _volume           = nullptr;
+    _volumeSecondBest = nullptr;
+    _volumeStepZ      = nullptr;
+    _volumeBestZ      = nullptr;
 }
 
 void SemiGlobalMatchingVolume::cloneVolumeSecondStepZ()
@@ -232,46 +190,6 @@ void SemiGlobalMatchingVolume::copyVolume(const StaticVector<unsigned char>& vol
     }
 }
 
-#if 0
-void SemiGlobalMatchingVolume::copyVolume(const StaticVector<int>* volume)
-{
-    unsigned char* _volumePtr = _volume->getDataWritable().data();
-    const int* volumePtr = volume->getData().data();
-#pragma omp parallel for
-    for(int z = 0; z < volDimZ; z++)
-    {
-        for(int y = 0; y < volDimY; y++)
-        {
-            for(int x = 0; x < volDimX; x++)
-            {
-                _volumePtr[z * volDimY * volDimX + y * volDimX + x] =
-                    (unsigned char)volumePtr[z * volDimY * volDimX + y * volDimX + x];
-            }
-        }
-    }
-}
-#endif
-
-void SemiGlobalMatchingVolume::addVolumeMin(const StaticVector<unsigned char>* volume, int zFrom, int nZSteps)
-{
-    unsigned char* _volumePtr = _volume->getDataWritable().data();
-    const unsigned char* volumePtr = volume->getData().data();
-#pragma omp parallel for
-    for(int z = zFrom; z < zFrom + nZSteps; z++)
-    {
-        for(int y = 0; y < volDimY; y++)
-        {
-            for(int x = 0; x < volDimX; x++)
-            {
-                int offs = z * volDimY * volDimX + y * volDimX + x;
-                unsigned char va = _volumePtr[offs];
-                unsigned char vn = volumePtr[(z - zFrom) * volDimY * volDimX + y * volDimX + x];
-                _volumePtr[offs] = std::min(va, vn);
-            }
-        }
-    }
-}
-
 // void addVolumeSecondMin(const StaticVector<unsigned char>& volume, int zFrom, int nZSteps);
 void SemiGlobalMatchingVolume::addVolumeSecondMin(
             const std::vector<int>& index_set, 
@@ -313,28 +231,6 @@ void SemiGlobalMatchingVolume::addVolumeSecondMin(
         }
     }
   }
-}
-
-void SemiGlobalMatchingVolume::addVolumeAvg(int n, const StaticVector<unsigned char>* volume, int zFrom, int nZSteps)
-{
-    unsigned char* _volumePtr = _volume->getDataWritable().data();
-    const unsigned char* volumePtr = volume->getData().data();
-#pragma omp parallel for
-    for(int z = zFrom; z < zFrom + nZSteps; z++)
-    {
-        for(int y = 0; y < volDimY; y++)
-        {
-            for(int x = 0; x < volDimX; x++)
-            {
-                unsigned char va = _volumePtr[z * volDimY * volDimX + y * volDimX + x];
-                unsigned char vn = volumePtr[(z - zFrom) * volDimY * volDimX + y * volDimX + x];
-                float vv = ((float)va * (float)(n - 1) + (float)vn) / (float)n;
-                assert(vv >= 0.0);
-                assert(vv < 255.0);
-                _volumePtr[z * volDimY * volDimX + y * volDimX + x] = (unsigned char)vv;
-            }
-        }
-    }
 }
 
 } // namespace depthMap

@@ -760,30 +760,30 @@ void PlaneSweepingCuda::allocTempVolume( std::vector<CudaDeviceMemoryPitched<flo
 void PlaneSweepingCuda::freeTempVolume( std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp )
 {
     for( auto ptr: volSim_dmp ) delete ptr;
+    volSim_dmp.clear();
 }
 
 /* Be very careful with volume indexes:
  * volume is indexed with the same index as tc. The values of tc can be quite different.
  * depths is indexed with the index_set elements
  */
-float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
-                                              float* volume_out,
-                                              const int volume_offset,
-                                              std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
-                                              const int volDimX,
-                                              const int volDimY,
-                                              const int volStepXY,
-                                              const int zDimsAtATime,
-                                              const std::vector<std::vector<float> >& depths_in,
-                                              int rc,
-                                              const StaticVector<int>& tc_in,
-                                              StaticVectorBool* rcSilhoueteMap,
-                                              int wsh, float gammaC, float gammaP,
-                                              int scale, int step,
-                                              float epipShift )
+void PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
+                                             float* volume_out,
+                                             const int volume_offset,
+                                             std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
+                                             const int volDimX,
+                                             const int volDimY,
+                                             const int volStepXY,
+                                             const int zDimsAtATime,
+                                             const std::vector<std::vector<float> >& depths_in,
+                                             int rc,
+                                             const StaticVector<int>& tc_in,
+                                             StaticVectorBool* rcSilhoueteMap,
+                                             int wsh, float gammaC, float gammaP,
+                                             int scale, int step,
+                                             float epipShift )
 {
     const int max_tcs = _nImgsInGPUAtTime - 1;
-    float retval = 0.0f;
     std::vector<int> index_subset;
     float* sub_volume_out = volume_out;
     auto it = index_set.begin();
@@ -799,27 +799,23 @@ float PlaneSweepingCuda::sweepPixelsToVolume( const std::vector<int>& index_set,
             it++;
         }
 
-        float r = sweepPixelsToVolumeSubset( index_subset,
-                                             sub_volume_out, volume_offset,
-                                             volSim_dmp,
-                                             volDimX, volDimY, volStepXY,
-                                             zDimsAtATime,
-                                             depths_in,
-                                             rc,
-                                             tc_in,
-                                             rcSilhoueteMap,
-                                             wsh,
-                                             gammaC, gammaP, scale, step, epipShift );
-        retval = std::max( retval, r );
-
+        sweepPixelsToVolumeSubset( index_subset,
+                                   sub_volume_out, volume_offset,
+                                   volSim_dmp,
+                                   volDimX, volDimY, volStepXY,
+                                   zDimsAtATime,
+                                   depths_in,
+                                   rc,
+                                   tc_in,
+                                   rcSilhoueteMap,
+                                   wsh,
+                                   gammaC, gammaP, scale, step, epipShift );
         sub_volume_out += ( max_tcs * volume_offset );
     }
     cudaDeviceSynchronize();
-
-    return retval;
 }
 
-float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& index_set,
+void PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& index_set,
                                               float* volume_out, const int volume_out_offset,
                                               std::vector<CudaDeviceMemoryPitched<float, 3>*>& volSim_dmp,
                                               const int volDimX,
@@ -919,16 +915,6 @@ float PlaneSweepingCuda::sweepPixelsToVolumeSubset( const std::vector<int>& inde
         // mvsUtils::printfElapsedTime(t1);
         printf("sweepPixelsToVolumeSubset elapsed time: %f ms \n", toc(t1));
     }
-
-    // sweep
-    float volumeMBinGPUMem = 0.0f;
-    for( auto slice : volSim_dmp ) 
-        volumeMBinGPUMem = std::max( volumeMBinGPUMem, (float)slice->getBytes() );
-    volumeMBinGPUMem /= (1024.0f * 1024.0f);
-
-    printf("%s: reporting that we need %4.2f bytes for result volume per image.\n", __FUNCTION__, volumeMBinGPUMem );
-
-    return volumeMBinGPUMem;
 }
 
 /**

@@ -22,26 +22,29 @@ public:
                             const StaticVector<int>& _tc,
                             int _scale,
                             int _step,
+                            int zDimsAtATime,
                             SemiGlobalMatchingParams* _sp,
                             StaticVectorBool* _rcSilhoueteMap = NULL );
     ~SemiGlobalMatchingRcTc(void);
 
     void computeDepthSimMapVolume( std::vector<StaticVector<unsigned char> >& volume,
-                                   float& volumeMBinGPUMem,
+                                   std::vector<CudaDeviceMemoryPitched<float, 3>*>& volume_tmp_on_gpu,
+                                   // float& volumeMBinGPUMem,
                                    int wsh,
                                    float gammaC,
                                    float gammaP );
 
 private:
-    const std::vector<int> index_set;
+    const std::vector<int> _index_set;
     const SemiGlobalMatchingParams* const sp;
 
     const int rc;
     const StaticVector<int>& tc;
-    const int scale;
-    const int step;
-    const int w;
-    const int h;
+    const int _scale;
+    const int _step;
+    const int _w;
+    const int _h;
+    const int _zDimsAtATime;
     const std::vector<std::vector<float> >& rcTcDepths;
     float epipShift;
     // int w, h;
