@@ -344,25 +344,22 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
 
     // compute gradient
     {
-        CudaDeviceMemoryPitched<uchar4, 2> tex_lab_dmp(CudaSize<2>(w, h));
-        copy(tex_lab_dmp, (*cam.tex_rgba_hmh));
+        copy(*ps_texs_arr[camId][0].arr, (*cam.tex_rgba_hmh));
 
         int block_size = 8;
         dim3 block(block_size, block_size, 1);
         dim3 grid(divUp(w, block_size), divUp(h, block_size), 1);
-        rgb2lab_kernel<<<grid, block>>>(tex_lab_dmp.getBuffer(), tex_lab_dmp.stride()[0], w, h);
-        cudaThreadSynchronize();
-        copy((*ps_texs_arr[camId][0].arr), tex_lab_dmp);
+        rgb2lab_kernel<<<grid, block>>>(ps_texs_arr[camId][0].arr->getBuffer(), ps_texs_arr[camId][0].arr->stride()[0], w, h);
 
         if(varianceWsh > 0)
         {
+            // Reading from obj.tex and writing to obj.arr is somewhat dangerous,
+            // but elements read from obj.tex are not updated in compute_varLofLABtoW_kernel.
             compute_varLofLABtoW_kernel
                 <<<grid, block>>>
                 ( ps_texs_arr[camId][0].tex,
-                  tex_lab_dmp.getBuffer(), tex_lab_dmp.stride()[0],
+                  ps_texs_arr[camId][0].arr->getBuffer(), ps_texs_arr[camId][0].arr->stride()[0],
                   w, h, varianceWsh);
-            cudaThreadSynchronize();
-            copy((*ps_texs_arr[camId][0].arr), tex_lab_dmp);
         }
     }
 
