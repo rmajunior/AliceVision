@@ -151,26 +151,43 @@ __host__ static void ps_init_target_camera_matrices( const cameraStructBase* bas
     cudaMemcpyToSymbol(sg_s_t, base, sizeof(cameraStructBase));
 }
 
-__host__ cudaArray* ps_create_gaussian_arr(float delta, int radius)
+__host__ void ps_create_gaussian_arr(float delta, int radius)
 {
     int size = 2 * radius + 1;
 
-    float* d_gaussian;
-    cudaMalloc((void**)&d_gaussian, (2 * radius + 1) * sizeof(float));
+    if( size > MAX_CONSTANT_GAUSS_MEM_SIZE )
+    {
+        ALICEVISION_LOG_ERROR( "Programming error: Gaussian kernel larger than " << MAX_CONSTANT_GAUSS_MEM_SIZE << " not expected. Enlarge and recompile." );
+        throw std::runtime_error( "Programming error: Gaussian kernel is larger than expected" );
+    }
+
+    float* h_gaussian;
+    cudaError_t err = cudaMallocHost((void**)&h_gaussian, (2 * radius + 1) * sizeof(float));
+    if( err != cudaSuccess )
+    {
+        ALICEVISION_LOG_ERROR( "Failed to allocate memory for Gaussian filter building, " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Failed to allocate memory for Gaussian filter building" );
+    }
+
+    for( int idx=0; idx<2 * radius + 1; idx++ )
+    {
+        int x = idx - radius;
+        h_gaussian[idx] = expf(-(x * x) / (2 * delta * delta));
+    }
 
     // generate gaussian array
-    generateGaussian_kernel<<<1, size>>>(d_gaussian, delta, radius);
-    cudaThreadSynchronize();
 
-    cudaArray* d_gaussianArray = NULL;
 
     // create cuda array
-    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
-    cudaMallocArray(&d_gaussianArray, &channelDesc, size, 1);
-    cudaMemcpyToArray(d_gaussianArray, 0, 0, d_gaussian, size * sizeof(float), cudaMemcpyDeviceToDevice);
-    cudaFree(d_gaussian);
+    err = cudaMemcpyToSymbol(d_gaussianArray, h_gaussian, size * sizeof(float), 0, cudaMemcpyDeviceToDevice);
+    if( err != cudaSuccess )
+    {
+        ALICEVISION_LOG_ERROR( "Failed to move Gaussian filter to symbol, " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Failed to move Gaussian filter to symbol." );
 
-    return d_gaussianArray;
+    }
+    cudaFreeHost(h_gaussian);
+
 }
 
 int ps_listCUDADevices(bool verbose)
@@ -368,8 +385,7 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
     for(int scale = 1; scale < scales; scale++)
     {
         int radius = scale + 1;
-        cudaArray* gaussian_arr = ps_create_gaussian_arr(1.0f, radius);
-        cudaBindTextureToArray(gaussianTex, gaussian_arr, cudaCreateChannelDesc<float>());
+        ps_create_gaussian_arr(1.0f, radius);
 
         // int block_size = 8;
         const dim3 block(32, 2, 1);
@@ -394,8 +410,6 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
                   w / (scale + 1), h / (scale + 1), varianceWsh);
         }
 
-        cudaUnbindTexture(gaussianTex);
-        cudaFreeArray(gaussian_arr);
     };
 
     CHECK_CUDA_ERROR();
