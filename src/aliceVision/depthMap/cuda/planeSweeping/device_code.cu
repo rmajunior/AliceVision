@@ -1156,7 +1156,8 @@ __global__ void downscale_gauss_smooth_lab_kernel(
             {
                 float4 curPix = 255.0f * tex2D<float4>(rc_tex, (float)(x * scale + j) + (float)scale / 2.0f,
                                                (float)(y * scale + i) + (float)scale / 2.0f);
-                float factor = d_gaussianArray[i + radius] * d_gaussianArray[j + radius]; // domain factor
+                float factor = getGauss( scale-1, i + radius )
+                             * getGauss( scale-1, j + radius ); // domain factor
                 t = t + curPix * factor;
                 sum += factor;
             }
@@ -1189,7 +1190,8 @@ __global__ void downscale_gauss_smooth_lab_kernel(
             {
                 float4 curPix = 255.0f * tex2D(r4tex, (float)(x * scale + j) + (float)scale / 2.0f,
                                                (float)(y * scale + i) + (float)scale / 2.0f);
-                float factor = d_gaussianArray[i + radius] * d_gaussianArray[j + radius]; // domain factor
+                float factor = getGauss( scale-1, i + radius )
+                             * getGauss( scale-1, j + radius ); // domain factor
                 t = t + curPix * factor;
                 sum += factor;
             }

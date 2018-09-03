@@ -41,8 +41,13 @@ __device__ __constant__ float gauss5[5] = {0.135335283236613f, 0.606530659712633
                                            0.135335283236613f};
 __device__ __constant__ float sumGauss55 = 6.16892408102888f;
 
+#define MAX_CONSTANT_GAUSS_SCALES   10
 #define MAX_CONSTANT_GAUSS_MEM_SIZE 128
+bool                          d_gaussianArrayInitialized = false;
+__device__ __constant__ int   d_gaussianArrayOffset[MAX_CONSTANT_GAUSS_SCALES];
 __device__ __constant__ float d_gaussianArray[MAX_CONSTANT_GAUSS_MEM_SIZE];
+
+__device__ inline float getGauss( int scale, int idx ) { return d_gaussianArray[d_gaussianArrayOffset[scale] + idx]; }
 
 // MATLAB: distFcnHeight=1.0; maxDist = 0.3;  dist = 0:0.01:1; y =
 // 1-distFcnHeight*exp(-(dist.*dist)/(2*maxDist*maxDist)); plot(dist,y);
