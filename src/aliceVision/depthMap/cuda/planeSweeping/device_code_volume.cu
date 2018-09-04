@@ -177,21 +177,22 @@ __global__ void volume_initVolume_kernel(T* volume, int volume_s, int volume_p, 
 }
 
 __global__ void volume_updateMinXSlice_kernel(unsigned char* volume, int volume_s, int volume_p,
-                                              unsigned char* xySliceBestSim, int xySliceBestSim_p, int* xySliceBestZ,
-                                              int xySliceBestZ_p, int volDimX, int volDimY, int volDimZ, int vz)
+                                              unsigned char* xySliceBestSim, int xySliceBestSim_p,
+                                              int* xySliceBestZ, int xySliceBestZ_p,
+                                              int volDimX, int volDimY, int volDimZ, int vz)
 {
     int vx = blockIdx.x * blockDim.x + threadIdx.x;
     int vy = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if((vx >= 0) && (vx < volDimX) && (vy >= 0) && (vy < volDimY) && (vz >= 0) && (vz < volDimZ))
+    if( ( vx >= volDimX ) || ( vy >= volDimY ) || ( vz >= volDimZ ) || ( vz < 0 ) ) return;
+
+    unsigned char sim = *get3DBufferAt(volume, volume_s, volume_p, vx, vy, vz);
+    BufPtr<unsigned char> xySliceBest( xySliceBestSim, xySliceBestSim_p );
+    unsigned char actSim_ptr = xySliceBest.at(vx, vy);
+    if((sim < actSim_ptr) || (vz == 0))
     {
-        unsigned char sim = *get3DBufferAt(volume, volume_s, volume_p, vx, vy, vz);
-        unsigned char* actSim_ptr = get2DBufferAt(xySliceBestSim, xySliceBestSim_p, vx, vy);
-        if((sim < *actSim_ptr) || (vz == 0))
-        {
-            *actSim_ptr = sim;
-            *get2DBufferAt(xySliceBestZ, xySliceBestZ_p, vx, vy) = vz;
-        }
+        xySliceBest                              .at(vx,vy) = sim;
+        BufPtr<int>(xySliceBestZ, xySliceBestZ_p).at(vx,vy) = vz;
     }
 }
 
