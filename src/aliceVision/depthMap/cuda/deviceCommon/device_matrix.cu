@@ -9,6 +9,7 @@
 // mn MATRIX ADDRESSING: mxy = x*n+y (x-row,y-col), (m-number of rows, n-number of columns)
 
 #include <math_constants.h>
+#include <aliceVision/depthMap/cuda/deviceCommon/device_operators.h>
 
 namespace aliceVision {
 namespace depthMap {
@@ -88,66 +89,6 @@ __device__ uchar4 float4_to_uchar4(const float4& a)
 __device__ float4 uchar4_to_float4(const uchar4& a)
 {
     return make_float4((float)a.x, (float)a.y, (float)a.z, (float)a.w);
-}
-
-__device__ float4 operator*(const float4& a, const float& d)
-{
-    return make_float4(a.x * d, a.y * d, a.z * d, a.w * d);
-}
-
-__device__ float4 operator+(const float4& a, const float4& d)
-{
-    return make_float4(a.x + d.x, a.y + d.y, a.z + d.z, a.w + d.w);
-}
-
-__device__ float4 operator*(const float& d, const float4& a)
-{
-    return make_float4(a.x * d, a.y * d, a.z * d, a.w * d);
-}
-
-__device__ float3 operator*(const float3& a, const float& d)
-{
-    return make_float3(a.x * d, a.y * d, a.z * d);
-}
-
-__device__ float3 operator/(const float3& a, const float& d)
-{
-    return make_float3(a.x / d, a.y / d, a.z / d);
-}
-
-__device__ float3 operator+(const float3& a, const float3& b)
-{
-    return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-
-__device__ float3 operator-(const float3& a, const float3& b)
-{
-    return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-__device__ int2 operator+(const int2& a, const int2& b)
-{
-    return make_int2(a.x + b.x, a.y + b.y);
-}
-
-__device__ float2 operator*(const float2& a, const float& d)
-{
-    return make_float2(a.x * d, a.y * d);
-}
-
-__device__ float2 operator/(const float2& a, const float& d)
-{
-    return make_float2(a.x / d, a.y / d);
-}
-
-__device__ float2 operator+(const float2& a, const float2& b)
-{
-    return make_float2(a.x + b.x, a.y + b.y);
-}
-
-__device__ float2 operator-(const float2& a, const float2& b)
-{
-    return make_float2(a.x - b.x, a.y - b.y);
 }
 
 __device__ float dot(const float3& a, const float3& b)

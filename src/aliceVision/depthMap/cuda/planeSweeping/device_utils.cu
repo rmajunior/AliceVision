@@ -6,54 +6,11 @@
 
 #pragma once
 
+#include <aliceVision/depthMap/cuda/planeSweeping/device_utils.h>
+
+
 namespace aliceVision {
 namespace depthMap {
-
-// Helper functions
-
-clock_t tic()
-{
-    return clock();
-}
-
-// returns the ms passed after last call to tic()
-float toc(clock_t ticClk)
-{
-    return (float)((clock() - ticClk) * 1000.0 / CLOCKS_PER_SEC);
-}
-
-template <typename T>
-class BufPtr
-{
-public:
-    __host__ __device__
-    BufPtr( T* ptr, int pitch )
-        : _ptr( (unsigned char*)ptr )
-        , _pitch( pitch )
-    { }
-
-    __host__ __device__
-    inline T*       ptr()       { return (T*)      _ptr; }
-    __host__ __device__
-    inline const T* ptr() const { return (const T*)_ptr; }
-
-    __host__ __device__
-    inline T*       row( int y )       { return (T*)      (_ptr + y * _pitch); }
-    __host__ __device__
-    inline const T* row( int y ) const { return (const T*)(_ptr + y * _pitch); }
-
-    __host__ __device__
-    inline T&       at( int x, int y )       { return row(y)[x]; }
-    __host__ __device__
-    inline const T& at( int x, int y ) const { return row(y)[x]; }
-private:
-    BufPtr( );
-    BufPtr( const BufPtr& );
-    BufPtr& operator*=( const BufPtr& );
-
-    unsigned char* const _ptr;
-    const int            _pitch;
-};
 
 /**
 * @brief

@@ -13,6 +13,8 @@
 #include <aliceVision/depthMap/cuda/planeSweeping/device_code_volume.cu>
 #include <aliceVision/depthMap/cuda/planeSweeping/device_code_fuse.cu>
 #include <aliceVision/depthMap/cuda/planeSweeping/plane_sweeping_cuda.hpp>
+#include <aliceVision/depthMap/cuda/planeSweeping/host_utils.h>
+#include <aliceVision/depthMap/cuda/images/gauss_filter.hpp>
 
 #include <math_constants.h>
 
@@ -39,11 +41,6 @@ namespace depthMap {
  */
 static bool volume_slice_kernel_block_set = false;
 static dim3 volume_slice_kernel_block( 32, 1, 1 ); // minimal default settings
-
-// Round a / b to nearest higher integer value.
-inline unsigned int divUp(unsigned int a, unsigned int b) {
-  return (a % b != 0) ? (a / b + 1) : (a / b);
-}
 
 __host__ void configure_volume_slice_kernel( )
 {
@@ -149,90 +146,6 @@ __host__ static void ps_init_reference_camera_matrices( const cameraStructBase* 
 __host__ static void ps_init_target_camera_matrices( const cameraStructBase* base )
 {
     cudaMemcpyToSymbol(sg_s_t, base, sizeof(cameraStructBase));
-}
-
-__host__ void ps_create_gaussian_arr( int scales ) // float delta, int radius)
-{
-    if( scales >= MAX_CONSTANT_GAUSS_SCALES )
-    {
-        ALICEVISION_LOG_ERROR( "Programming error: too few scales pre-computed for Gaussian kernels. Enlarge and recompile." );
-        throw std::runtime_error( "Programming error: too few scales pre-computed for Gaussian kernels. Enlarge and recompile." );
-    }
-
-    cudaError_t err;
-
-    if( d_gaussianArrayInitialized ) return;
-
-    d_gaussianArrayInitialized = true;
-
-    int*   h_gaussianArrayOffset;
-    float* h_gaussianArray;
-    err = cudaMallocHost( &h_gaussianArrayOffset, MAX_CONSTANT_GAUSS_SCALES * sizeof(int) );
-    if( err != cudaSuccess )
-    {
-        ALICEVISION_LOG_ERROR( "Failed to allocate " << MAX_CONSTANT_GAUSS_SCALES * sizeof(int) << " of CUDA host memory." );
-        throw std::runtime_error( "Failed to allocate CUDA host memory." );
-    }
-    err = cudaMallocHost( &h_gaussianArray,       MAX_CONSTANT_GAUSS_MEM_SIZE * sizeof(float) );
-    if( err != cudaSuccess )
-    {
-        ALICEVISION_LOG_ERROR( "Failed to allocate " << MAX_CONSTANT_GAUSS_MEM_SIZE * sizeof(float) << " of CUDA host memory." );
-        throw std::runtime_error( "Failed to allocate CUDA host memory." );
-    }
-
-    int sum_sizes = 0;
-    for( int scale=0; scale<MAX_CONSTANT_GAUSS_SCALES; scale++ )
-    {
-        h_gaussianArrayOffset[scale] = sum_sizes;
-        const int   radius = scale + 1;
-        const int   size   = 2 * radius + 1;
-        sum_sizes += size;
-    }
-
-    if( sum_sizes >= MAX_CONSTANT_GAUSS_MEM_SIZE )
-    {
-        ALICEVISION_LOG_ERROR( "Programming error: too little memory allocated for " << MAX_CONSTANT_GAUSS_SCALES << " Gaussian kernels. Enlarge and recompile." );
-        throw std::runtime_error( "Programming error: too little memory allocated for Gaussian kernels. Enlarge and recompile." );
-    }
-
-    for( int scale=0; scale<MAX_CONSTANT_GAUSS_SCALES; scale++ )
-    {
-        const int   radius = scale + 1;
-        const float delta  = 1.0f;
-        const int   size   = 2 * radius + 1;
-
-        for( int idx=0; idx<size; idx++ )
-        {
-            int x = idx - radius;
-            h_gaussianArray[h_gaussianArrayOffset[scale]+idx] = expf(-(x * x) / (2 * delta * delta));
-        }
-
-        // generate gaussian array
-    }
-
-
-    // create cuda array
-    err = cudaMemcpyToSymbol( d_gaussianArrayOffset,
-                              h_gaussianArrayOffset,
-                              MAX_CONSTANT_GAUSS_SCALES * sizeof(int), 0, cudaMemcpyDeviceToDevice);
-    if( err != cudaSuccess )
-    {
-        ALICEVISION_LOG_ERROR( "Failed to move Gaussian filter to symbol, " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Failed to move Gaussian filter to symbol." );
-    }
-
-    err = cudaMemcpyToSymbol( d_gaussianArray,
-                              h_gaussianArray,
-                              sum_sizes * sizeof(float), 0, cudaMemcpyDeviceToDevice);
-    if( err != cudaSuccess )
-    {
-        ALICEVISION_LOG_ERROR( "Failed to move Gaussian filter to symbol, " << cudaGetErrorString(err) );
-        throw std::runtime_error( "Failed to move Gaussian filter to symbol." );
-
-    }
-
-    cudaFreeHost( h_gaussianArrayOffset );
-    cudaFreeHost( h_gaussianArray );
 }
 
 int ps_listCUDADevices(bool verbose)
@@ -436,14 +349,7 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
         const dim3 block(32, 2, 1);
         const dim3 grid(divUp(w / (scale + 1), block.x), divUp(h / (scale + 1), block.y), 1);
 
-        downscale_gauss_smooth_lab_kernel
-            <<<grid, block>>>
-            ( ps_texs_arr[camId][0].tex,
-              ps_texs_arr[camId][scale].arr->getBuffer(),
-              ps_texs_arr[camId][scale].arr->stride()[0],
-              w / (scale + 1), h / (scale + 1), scale + 1,
-              radius //, 15.5f
-              );
+        ps_downscale_gauss( ps_texs_arr, camId, scale, w, h, radius );
 
         if(varianceWsh > 0)
         {
@@ -454,8 +360,7 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
                   ps_texs_arr[camId][scale].arr->stride()[0],
                   w / (scale + 1), h / (scale + 1), varianceWsh);
         }
-
-    };
+    }
 
     CHECK_CUDA_ERROR();
 }
