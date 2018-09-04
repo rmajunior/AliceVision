@@ -78,9 +78,9 @@ public:
     inline int maxImagesInGPU() const { return _nImgsInGPUAtTime; }
 
     // float gammaC,gammaP;
-    mvsUtils::ImagesCache* ic;
+    mvsUtils::ImagesCache& _ic;
 
-    PlaneSweepingCuda(int CUDADeviceNo, mvsUtils::ImagesCache* _ic, mvsUtils::MultiViewParams* _mp, mvsUtils::PreMatchCams* _pc,
+    PlaneSweepingCuda(int CUDADeviceNo, mvsUtils::ImagesCache& _ic, mvsUtils::MultiViewParams* _mp, mvsUtils::PreMatchCams* _pc,
                         int scales);
     ~PlaneSweepingCuda(void);
 

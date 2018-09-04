@@ -124,7 +124,7 @@ static void cps_fillCamera(cameraStructBase& base, int c, mvsUtils::MultiViewPar
     ps_initCameraMatrix( base );
 }
 
-static void cps_fillCameraData(mvsUtils::ImagesCache* ic, cameraStruct& cam, int c, mvsUtils::MultiViewParams* mp, StaticVectorBool* rcSilhoueteMap)
+static void cps_fillCameraData(mvsUtils::ImagesCache& ic, cameraStruct& cam, int c, mvsUtils::MultiViewParams* mp, StaticVectorBool* rcSilhoueteMap)
 {
     // std::cerr << "Calling " << __FUNCTION__ << "    to fill pixels for camera " << c << std::endl;
 
@@ -134,7 +134,7 @@ static void cps_fillCameraData(mvsUtils::ImagesCache* ic, cameraStruct& cam, int
     //	cam->tex_hmh_g->getBuffer(),
     //	cam->tex_hmh_b->getBuffer(), mp->indexes[c], mp, true, 1, 0);
 
-    ic->refreshData(c);
+    ic.refreshData(c);
 
     Pixel pix;
     if( rcSilhoueteMap == nullptr )
@@ -143,8 +143,8 @@ static void cps_fillCameraData(mvsUtils::ImagesCache* ic, cameraStruct& cam, int
         {
             for(pix.x = 0; pix.x < mp->getWidth(c); pix.x++)
             {
-                uchar4& pix_rgba = ic->transposed ? (*cam.tex_rgba_hmh)(pix.x, pix.y) : (*cam.tex_rgba_hmh)(pix.y, pix.x);
-                const rgb& pc = ic->getPixelValue(pix, c);
+                uchar4& pix_rgba = ic.transposed ? (*cam.tex_rgba_hmh)(pix.x, pix.y) : (*cam.tex_rgba_hmh)(pix.y, pix.x);
+                const rgb& pc = ic.getPixelValue(pix, c);
                 pix_rgba.x = pc.r;
                 pix_rgba.y = pc.g;
                 pix_rgba.z = pc.b;
@@ -158,8 +158,8 @@ static void cps_fillCameraData(mvsUtils::ImagesCache* ic, cameraStruct& cam, int
         {
             for(pix.x = 0; pix.x < mp->getWidth(c); pix.x++)
             {
-                uchar4& pix_rgba = ic->transposed ? (*cam.tex_rgba_hmh)(pix.x, pix.y) : (*cam.tex_rgba_hmh)(pix.y, pix.x);
-                const rgb& pc = ic->getPixelValue(pix, c);
+                uchar4& pix_rgba = ic.transposed ? (*cam.tex_rgba_hmh)(pix.x, pix.y) : (*cam.tex_rgba_hmh)(pix.y, pix.x);
+                const rgb& pc = ic.getPixelValue(pix, c);
                 pix_rgba.x = pc.r;
                 pix_rgba.y = pc.g;
                 pix_rgba.z = pc.b;
@@ -172,7 +172,7 @@ static void cps_fillCameraData(mvsUtils::ImagesCache* ic, cameraStruct& cam, int
 }
 
 PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
-                                      mvsUtils::ImagesCache*     _ic,
+                                      mvsUtils::ImagesCache&     ic,
                                       mvsUtils::MultiViewParams* _mp,
                                       mvsUtils::PreMatchCams*    _pc,
                                       int scales )
@@ -182,6 +182,7 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
     , _verbose( _mp->verbose )
     , _nbestkernelSizeHalf( 1 )
     , _nImgsInGPUAtTime( 2 )
+    , _ic( ic )
 {
     ps_testCUDAdeviceNo( _CUDADeviceNo );
 
@@ -195,7 +196,6 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
      * will hold CUDA memory for camera structs and bitmaps.
      */
 
-    ic = _ic;
     mp = _mp;
     pc = _pc;
 
@@ -304,7 +304,7 @@ int PlaneSweepingCuda::addCam( int rc, int scale,
         long t1 = clock();
 
         cps_fillCamera( _camsBasesHst(0,oldestId), rc, mp, scale, calling_func );
-        cps_fillCameraData(ic, cams[oldestId], rc, mp, rcSilhoueteMap );
+        cps_fillCameraData( _ic, cams[oldestId], rc, mp, rcSilhoueteMap );
         ps_deviceUpdateCam(ps_texs_arr, cams[oldestId], oldestId,
                            _CUDADeviceNo, _nImgsInGPUAtTime, _scales, mp->getMaxImageWidth(), mp->getMaxImageHeight(), varianceWSH);
 

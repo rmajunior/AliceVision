@@ -739,7 +739,7 @@ void computeDepthMapsPSSGM(int CUDADeviceNo, mvsUtils::MultiViewParams* mp, mvsU
     // load images from files into RAM 
     mvsUtils::ImagesCache ic(mp, bandType, true);
     // load stuff on GPU memory and creates multi-level images and computes gradients
-    PlaneSweepingCuda cps(CUDADeviceNo, &ic, mp, pc, sgmScale);
+    PlaneSweepingCuda cps(CUDADeviceNo, ic, mp, pc, sgmScale);
     // init plane sweeping parameters
     SemiGlobalMatchingParams sp(mp, pc, &cps);
 
