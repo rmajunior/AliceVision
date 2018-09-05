@@ -205,7 +205,8 @@ public:
         cudaError_t err = cudaMallocHost( &buffer, sx * sy * sz * sizeof (Type) );
         if( err != cudaSuccess )
         {
-            ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+            ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+            throw std::runtime_error( "Could not allocate CUDA host memory" );
         }
     }
 
@@ -333,7 +334,8 @@ public:
             {
                 int devid;
                 cudaGetDevice( &devid );
-                ALICEVISION_LOG_ERROR( "Device " << devid << " alloc failed, " << cudaGetErrorString(err) );
+                ALICEVISION_LOG_ERROR( "Device " << devid << " alloc " << getBytes() << " bytes failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+                throw std::runtime_error( "Could not allocate pitched device memory" );
             }
         }
         else if(Dim == 3)
@@ -348,8 +350,14 @@ public:
             {
                 int devid;
                 cudaGetDevice( &devid );
-                ALICEVISION_LOG_ERROR( "Device " << devid << " alloc failed, " << cudaGetErrorString(err) );
+                long bytes = size[0] * size[1] * size[2] * sizeof(Type);
+                ALICEVISION_LOG_ERROR( "Device " << devid << " alloc "
+                                    << size[0] << "x" << size[1] << "x" << size[2] << "x" << sizeof(Type) << " = "
+                                    << bytes << " bytes ("
+                << (int)(bytes/1024.0f/1024.0f) << " MB) failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+                throw std::runtime_error( "Could not allocate 3D device memory" );
             }
+
             buffer = (Type*)pitchDevPtr.ptr;
             pitch = pitchDevPtr.pitch;
         }
@@ -452,7 +460,7 @@ public:
         cudaError_t err = cudaMalloc(&buffer, sx * sizeof(Type) );
         if( err != cudaSuccess )
         {
-            ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+            ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
             throw std::runtime_error( "Could not allocate pinned host memory." );
         }
     }
@@ -476,7 +484,7 @@ public:
         cudaError_t err = cudaMemcpy( buffer, inbuf, num * sizeof(Type), kind );
         if( err != cudaSuccess )
         {
-            ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory: " << cudaGetErrorString(err) );
+            ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory in " << __FILE__ << ":" << __LINE__ << ": " << cudaGetErrorString(err) );
             throw std::runtime_error( "Failed to copy from flat host buffer to CudaDeviceMemory" );
         }
     }
@@ -487,7 +495,7 @@ public:
         cudaError_t err = cudaMemcpyAsync( buffer, inbuf, num * sizeof(Type), kind, stream );
         if( err != cudaSuccess )
         {
-            ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory: " << cudaGetErrorString(err) );
+            ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory in " << __FILE__ << ":" << __LINE__ << ": " << cudaGetErrorString(err) );
             throw std::runtime_error( "Failed to copy from flat host buffer to CudaDeviceMemory" );
         }
     }
