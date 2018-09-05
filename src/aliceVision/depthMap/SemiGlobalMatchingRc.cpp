@@ -794,6 +794,14 @@ void computeDepthMapsPSSGM(mvsUtils::MultiViewParams* mp, mvsUtils::PreMatchCams
             int cpu_thread_id = omp_get_thread_num();
             int CUDADeviceNo = cpu_thread_id % numthreads;
             ALICEVISION_LOG_INFO("CPU thread " << cpu_thread_id << " (of " << numthreads << ") uses CUDA device: " << CUDADeviceNo);
+            cudaError_t err = cudaSetDevice( CUDADeviceNo );
+            if( err != cudaSuccess )
+            {
+                ALICEVISION_LOG_ERROR( "Failed to set up CUDA device " << CUDADeviceNo << " for thread " << cpu_thread_id );
+                throw std::runtime_error( "Failed to set up CUDA device for thread" );
+                    ALICEVISION_LOG_ERROR( "Failed to set up CUDA device " << CUDADeviceNo << " for thread " << cpu_thread_id );
+                    throw std::runtime_error( "Failed to set up CUDA device for thread" );
+            }
 
             int rcFrom = CUDADeviceNo * (cams.size() / numthreads);
             int rcTo = (CUDADeviceNo + 1) * (cams.size() / numthreads);
