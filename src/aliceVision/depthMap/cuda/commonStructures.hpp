@@ -142,7 +142,8 @@ public:
     cudaError_t err = cudaMallocHost( &buffer, sx * sy * sz * sizeof (Type) );
     if( err != cudaSuccess )
     {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate pinned host memory." );
     }
     memset(buffer, 0, sx * sy * sz * sizeof (Type));
   }
@@ -159,7 +160,8 @@ public:
     cudaError_t err = cudaMallocHost( &buffer, sx * sy * sz * sizeof (Type) );
     if( err != cudaSuccess )
     {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate pinned host memory." );
     }
     memcpy(buffer, rhs.buffer, sx * sy * sz * sizeof (Type));
     return *this;
@@ -215,7 +217,8 @@ public:
       cudaError_t err = cudaMallocPitch<Type>(&buffer, &pitch, _size[0] * sizeof(Type), _size[1]);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate pitched device memory." );
       }
     }
     else if(Dim == 3)
@@ -228,7 +231,8 @@ public:
       cudaError_t err = cudaMalloc3D(&pitchDevPtr, extent);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc failed, in " << __FILE__ << ":" << __LINE__ << " " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate 3D device memory." );
       }
       buffer = (Type*)pitchDevPtr.ptr;
       pitch = pitchDevPtr.pitch;
@@ -256,7 +260,8 @@ public:
       cudaError_t err = cudaMallocPitch<Type>(&buffer, &pitch, size[0] * sizeof(Type), size[1]);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc failed, in " << __FILE__ << ":" << __LINE__ << " " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate pitched device memory." );
       }
     }
     else if(Dim == 3)
@@ -269,7 +274,8 @@ public:
       cudaError_t err = cudaMalloc3D(&pitchDevPtr, extent);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc failed, in " << __FILE__ << ":" << __LINE__ << " " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate 3D device memory." );
       }
       buffer = (Type*)pitchDevPtr.ptr;
       pitch = pitchDevPtr.pitch;
@@ -330,7 +336,8 @@ public:
     err = cudaMalloc(&buffer, sx * sizeof(Type) );
     if( err != cudaSuccess )
     {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate CUDA pinned host memory." );
     }
   }
 
@@ -348,7 +355,8 @@ public:
     err = cudaMalloc(&buffer, sx * sizeof(Type) );
     if( err != cudaSuccess )
     {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate CUDA pinned host memory." );
     }
 
     copy(*this, rhs);
@@ -363,7 +371,8 @@ public:
     err = cudaMalloc(&buffer, sx * sizeof(Type) );
     if( err != cudaSuccess )
     {
-        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Could not allocate pinned host memory in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate CUDA pinned host memory." );
     }
 
     copyFrom( inbuf, size );
@@ -396,7 +405,8 @@ public:
     cudaError_t err = cudaMemcpy( buffer, inbuf, num * sizeof(Type), kind);
     if( err != cudaSuccess )
     {
-      ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory: " << cudaGetErrorString(err) );
+      ALICEVISION_LOG_ERROR( "Failed to copy from flat host buffer to CudaDeviceMemory in " << __FILE__ << ":" << __LINE__ << ": " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy host to device." );
     }
   }
 };
@@ -422,7 +432,8 @@ public:
       cudaError_t err = cudaMallocArray(&array, &channelDesc, _size[0], 1, cudaArraySurfaceLoadStore);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc 1D array failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc 1D array failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate device array memory." );
       }
     }
     else if(Dim == 2)
@@ -430,7 +441,8 @@ public:
       cudaError_t err = cudaMallocArray(&array, &channelDesc, _size[0], _size[1], cudaArraySurfaceLoadStore);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc 2D array failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc 2D array failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate device array memory." );
       }
     }
     else
@@ -444,7 +456,8 @@ public:
       cudaError_t err = cudaMalloc3DArray(&array, &channelDesc, extent);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc 3D array failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc 3D array failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate device array memory." );
       }
     }
   }
@@ -463,7 +476,8 @@ public:
       cudaError_t err = cudaMallocArray(&array, &channelDesc, size[0], 1, cudaArraySurfaceLoadStore);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc 1D array failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc 1D array failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate device array memory." );
       }
     }
     else if(Dim == 2)
@@ -471,7 +485,8 @@ public:
       cudaError_t err = cudaMallocArray(&array, &channelDesc, size[0], size[1], cudaArraySurfaceLoadStore);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc 2D array failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc 2D array failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate device array memory." );
       }
     }
     else
@@ -485,7 +500,8 @@ public:
       cudaError_t err = cudaMalloc3DArray(&array, &channelDesc, extent);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc 3D array failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc 3D array failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate device array memory." );
       }
     }
     copy(*this, rhs);
@@ -505,7 +521,8 @@ public:
       cudaError_t err = cudaMallocArray(&array, &channelDesc, size[0], 1, cudaArraySurfaceLoadStore);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc 1D array failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc 1D array failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate device array memory." );
       }
     }
     else if(Dim == 2)
@@ -513,7 +530,8 @@ public:
       cudaError_t err = cudaMallocArray(&array, &channelDesc, size[0], size[1], cudaArraySurfaceLoadStore);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc 2D array failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc 2D array failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate device array memory." );
       }
     }
     else
@@ -527,7 +545,8 @@ public:
       cudaError_t err = cudaMalloc3DArray(&array, &channelDesc, extent);
       if( err != cudaSuccess )
       {
-        ALICEVISION_LOG_ERROR( "Device alloc 3D array failed, " << cudaGetErrorString(err) );
+        ALICEVISION_LOG_ERROR( "Device alloc 3D array failed in " << __FILE__ << ":" << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Could not allocate device array memory." );
       }
     }
     copy(*this, rhs);
@@ -570,6 +589,7 @@ template<class Type, unsigned Dim> void copy(CudaHostMemoryHeap<Type, Dim>& _dst
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 2) {
@@ -582,6 +602,7 @@ template<class Type, unsigned Dim> void copy(CudaHostMemoryHeap<Type, Dim>& _dst
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim >= 3) {
@@ -597,6 +618,7 @@ template<class Type, unsigned Dim> void copy(CudaHostMemoryHeap<Type, Dim>& _dst
       if( err != cudaSuccess )
       {
         ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Failed to copy." );
       }
     }
   }
@@ -608,7 +630,8 @@ template<class Type> void copy(CudaHostMemoryHeap<Type,1>& _dst, const CudaDevic
   cudaError_t err = cudaMemcpy(_dst.getBuffer(), _src.getBuffer(), _src.getBytes(), kind);
   if( err != cudaSuccess )
   {
-    ALICEVISION_LOG_ERROR( "Failed to copy from CudaHostMemoryHeap to CudaDeviceMemory: " << cudaGetErrorString(err) );
+    ALICEVISION_LOG_ERROR( "Failed to ropy from CudaHostMemoryHeap to CudaDeviceMemory in " << __FILE__ << ":" << __LINE__ << ": " << cudaGetErrorString(err) );
+    throw std::runtime_error( "Failed to copy." );
   }
 }
 
@@ -620,6 +643,7 @@ template<class Type, unsigned Dim> void copy(CudaHostMemoryHeap<Type, Dim>& _dst
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 2) {
@@ -634,6 +658,7 @@ template<class Type, unsigned Dim> void copy(CudaHostMemoryHeap<Type, Dim>& _dst
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 3) {
@@ -656,6 +681,7 @@ template<class Type, unsigned Dim> void copy(CudaHostMemoryHeap<Type, Dim>& _dst
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
 }
@@ -668,6 +694,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 2) {
@@ -681,6 +708,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim >= 3) {
@@ -696,6 +724,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
       if( err != cudaSuccess )
       {
         ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
       }
     }
   }
@@ -709,6 +738,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 2) {
@@ -722,6 +752,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim >= 3) {
@@ -737,6 +768,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
       if( err != cudaSuccess )
       {
         ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Failed to copy." );
       }
     }
   }
@@ -749,6 +781,7 @@ template<class Type> void copy(CudaDeviceMemory<Type>& _dst, const CudaHostMemor
   if( err != cudaSuccess )
   {
     ALICEVISION_LOG_ERROR( "Failed to copy from CudaHostMemoryHeap to CudaDeviceMemory: " << cudaGetErrorString(err) );
+    throw std::runtime_error( "Failed to copy." );
   }
 }
 
@@ -765,6 +798,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 2) {
@@ -779,6 +813,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 3) {
@@ -801,6 +836,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
 }
@@ -813,6 +849,7 @@ template<class Type, unsigned Dim> void copy(CudaArray<Type, Dim>& _dst, const C
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 2) {
@@ -827,6 +864,7 @@ template<class Type, unsigned Dim> void copy(CudaArray<Type, Dim>& _dst, const C
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 3) {
@@ -849,6 +887,7 @@ template<class Type, unsigned Dim> void copy(CudaArray<Type, Dim>& _dst, const C
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
 }
@@ -861,6 +900,7 @@ template<class Type, unsigned Dim> void copy(CudaArray<Type, Dim>& _dst, const C
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 2) {
@@ -875,6 +915,7 @@ template<class Type, unsigned Dim> void copy(CudaArray<Type, Dim>& _dst, const C
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
   else if(Dim == 3) {
@@ -897,6 +938,7 @@ template<class Type, unsigned Dim> void copy(CudaArray<Type, Dim>& _dst, const C
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy." );
     }
   }
 }
@@ -908,6 +950,7 @@ template<class Type, unsigned Dim> void copy(Type* _dst, size_t sx, size_t sy, c
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy device to host." );
     }
   }
 }
@@ -919,6 +962,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
     if( err != cudaSuccess )
     {
       ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+      throw std::runtime_error( "Failed to copy host to device." );
     }
   }
 }
@@ -960,6 +1004,7 @@ template<class Type, unsigned Dim> void copy(CudaDeviceMemoryPitched<Type, Dim>&
       if( err != cudaSuccess )
       {
         ALICEVISION_LOG_ERROR( "Failed to copy : " << __FILE__ << " " << __LINE__ << ", " << cudaGetErrorString(err) );
+        throw std::runtime_error( "Failed to copy host to device." );
       }
     }
   }
