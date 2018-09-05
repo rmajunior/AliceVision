@@ -571,7 +571,7 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
 // #define FORCE_ZDIM_LIMIT 32
 #undef  FORCE_ZDIM_LIMIT
 #ifndef FORCE_ZDIM_LIMIT
-    const long gpu_bytes_reqd_per_plane = volDimX * volDimY * sizeof(float);
+    const long gpu_bytes_reqd_per_plane = volDimX * volDimY * sizeof(float) * 2; // safety margin 100%
     const long gpu_bytes_free = sp->cps->getDeviceMemoryInfo().x * 1024 * 1024;
     int        zDimsAtATime = depths->size();
     const int  camsAtATime  = tcams.size();
@@ -582,6 +582,14 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
             zDimsAtATime /= 2;
         }
     }
+    if(sp->mp->verbose)
+        ALICEVISION_LOG_DEBUG("bytes free on GPU: " << gpu_bytes_free
+                           << "(" << (int)(gpu_bytes_free/1024.0f/1024.0f) << " MB)"<< std::endl
+                           << "    estimated req'd bytes/plane: " << gpu_bytes_reqd_per_plane << std::endl
+                           << "    estimated dims at a time: " << zDimsAtATime << std::endl
+                           << "    cams at a time: " << camsAtATime << std::endl
+                           << "    estimated total: " << gpu_bytes_reqd_per_plane * zDimsAtATime * camsAtATime
+                           << " (" << (int)(gpu_bytes_reqd_per_plane * zDimsAtATime * camsAtATime/1024.0f/1024.0f) << " MB)" );
 #else
     int zDimsAtATime = FORCE_ZDIM_LIMIT; // for example FORCE_ZDIM_LIMIT=32
 #endif
