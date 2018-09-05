@@ -619,10 +619,12 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
      *   (max_img - 1) * X * Y * dims_at_a_time * sizeof(float)
      * of device memory.
      */
-    printf("Allocating %d times %d %d %d\n", tcams.size(),
+    int devid;
+    cudaGetDevice( &devid );
+    printf("Allocating %d times %d %d %d on device %d\n", tcams.size(),
                                              volDimX,
                                              volDimY,
-                                             zDimsAtATime );
+                                             zDimsAtATime, devid );
     std::vector<CudaDeviceMemoryPitched<float, 3>*> volume_tmp_on_gpu;
     sp->cps->allocTempVolume( volume_tmp_on_gpu,
                               tcams.size(),
