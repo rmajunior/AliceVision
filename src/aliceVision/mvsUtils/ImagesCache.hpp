@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include <aliceVision/mvsData/Color.hpp>
 #include <aliceVision/mvsData/Point2d.hpp>
 #include <aliceVision/mvsData/Rgb.hpp>
@@ -23,29 +25,45 @@ class ImagesCache
 public:
     class Img
     {
-        bool _transposed;
         int  _width;
         int  _height;
     public:
-        Img( ) : data(nullptr) { }
-        Img( size_t sz ) : data( new Color[sz] ) { }
-        ~Img( ) { delete [] data; }
+        Img( )
+            : data(nullptr)
+        { }
+        Img( size_t sz )
+            : data( new Color[sz] )
+        { }
 
-        inline void setTransposed( bool t ) { _transposed = t; }
+        ~Img( )
+        {
+            delete [] data;
+        }
+
         inline void setWidth(  int w ) { _width  = w; }
         inline void setHeight( int h ) { _height = h; }
 
-        inline const Color& at( int x, int y ) const {
-            if(!_transposed) return data[x * _height + y];
-            return data[y * _width + x];
+        inline int  getWidth()  const { return _width;  }
+        inline int  getHeight() const { return _height; }
+
+        inline Color& at( int x, int y )
+        {
+            return data[x * _height + y];
         }
 
-        inline const rgb get( int x, int y ) const {
-            const Color floatRGB = at(x,y) * 255.0f;
+        inline const Color& at( int x, int y ) const
+        {
+            return data[x * _height + y];
+        }
 
-            return rgb(static_cast<unsigned char>(floatRGB.r),
-                       static_cast<unsigned char>(floatRGB.g),
-                       static_cast<unsigned char>(floatRGB.b));
+        inline const uchar4 get( int x, int y ) const
+        {
+            const Color floatRGB = data[x * _height + y] * 255.0f;
+
+            return make_uchar4( static_cast<unsigned char>(floatRGB.r),
+                                static_cast<unsigned char>(floatRGB.g),
+                                static_cast<unsigned char>(floatRGB.b),
+                                0 );
         }
 
         Color* data;
@@ -91,7 +109,6 @@ public:
     std::future<void> refreshData_async(int camId);
 
     Color getPixelValueInterpolated(const Point2d* pix, int camId);
-    rgb getPixelValue(const Pixel& pix, int camId);
 };
 
 } // namespace mvsUtils

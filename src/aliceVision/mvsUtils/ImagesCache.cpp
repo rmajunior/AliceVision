@@ -97,7 +97,6 @@ void ImagesCache::refreshData(int camId)
 
         const std::string imagePath = imagesNames.at(camId);
         memcpyRGBImageFromFileToArr(camId, imgs[mapId]->data, imagePath, mp, bandType);
-        imgs[mapId]->setTransposed( false );
         imgs[mapId]->setWidth(  mp->getWidth(camId) );
         imgs[mapId]->setHeight( mp->getHeight(camId) );
 
@@ -138,19 +137,6 @@ Color ImagesCache::getPixelValueInterpolated(const Point2d* pix, int camId)
     return out;
 }
 
-rgb ImagesCache::getPixelValue(const Pixel& pix, int camId)
-{
-    refreshData(camId);
-
-    // get the image index in the memory
-    const int imageId = camIdMapId[camId];
-    const ImgPtr& img = imgs[imageId];
-    const Color floatRGB = img->at(pix.x,pix.y) * 255.0f; // img[getPixelId(pix.x, pix.y, camId)] * 255.0f;
-
-    return rgb(static_cast<unsigned char>(floatRGB.r),
-               static_cast<unsigned char>(floatRGB.g),
-               static_cast<unsigned char>(floatRGB.b));
-}
 
 } // namespace mvsUtils
 } // namespace aliceVision

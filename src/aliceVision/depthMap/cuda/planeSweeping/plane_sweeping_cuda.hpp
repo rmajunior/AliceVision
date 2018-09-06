@@ -76,7 +76,8 @@ extern void ps_optimizeDepthSimMapGradientDescent(Pyramid& ps_texs_arr,
                                                   int yFrom);
 
 extern void ps_getSilhoueteMap(Pyramid& ps_texs_arr, CudaHostMemoryHeap<bool, 2>* omap_hmh, int width,
-                               int height, int scale, int CUDAdeviceNo, int ncamsAllocated, int scales, int step,
+                               int height, int scale,
+                               int step,
                                int camId, uchar4 maskColorRgb, bool verbose);
 
 } // namespace depthMap

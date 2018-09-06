@@ -145,11 +145,8 @@ static void cps_fillCameraData(mvsUtils::ImagesCache& ic, cameraStruct& cam, int
             for(pix.x = 0; pix.x < mp->getWidth(c); pix.x++)
             {
                 uchar4& pix_rgba = ic.transposed ? (*cam.tex_rgba_hmh)(pix.x, pix.y) : (*cam.tex_rgba_hmh)(pix.y, pix.x);
-                const rgb& pc = img->get(pix.x, pix.y); //  ic.getPixelValue(pix, c);
-                pix_rgba.x = pc.r;
-                pix_rgba.y = pc.g;
-                pix_rgba.z = pc.b;
-                pix_rgba.w = 0;
+                const uchar4 pc = img->get(pix.x, pix.y); //  ic.getPixelValue(pix, c);
+                pix_rgba = pc;
             }
         }
     }
@@ -160,13 +157,12 @@ static void cps_fillCameraData(mvsUtils::ImagesCache& ic, cameraStruct& cam, int
             for(pix.x = 0; pix.x < mp->getWidth(c); pix.x++)
             {
                 uchar4& pix_rgba = ic.transposed ? (*cam.tex_rgba_hmh)(pix.x, pix.y) : (*cam.tex_rgba_hmh)(pix.y, pix.x);
-                const rgb& pc = img->get(pix.x, pix.y); //  ic.getPixelValue(pix, c);
-                pix_rgba.x = pc.r;
-                pix_rgba.y = pc.g;
-                pix_rgba.z = pc.b;
-                pix_rgba.w = (*rcSilhoueteMap)[pix.y*mp->getWidth(c)+pix.x]
-                           ? 1    // disabled if pix has background color
-                           : 0;   // enables otherwise
+                uchar4 pc = img->get(pix.x, pix.y);
+                if( (*rcSilhoueteMap)[pix.y*mp->getWidth(c)+pix.x] ) 
+                {
+                    pc.w = 1; // disabled if pix has background color
+                }
+                pix_rgba = pc;
             }
         }
     }
@@ -256,12 +252,6 @@ PlaneSweepingCuda::PlaneSweepingCuda( int CUDADeviceNo,
         cams[rc].camId = -1;
         camsRcs[rc]   = -1;
         camsTimes[rc] = 0;
-        // cps_fillCamera(camsBases[rc], rc, mp, 1, __FUNCTION__ );
-        // cps_fillCameraData(ic, cams[rc], rc, mp);
-        // camsRcs[rc]   = rc;
-        // camsTimes[rc] = clock();
-        // ps_deviceUpdateCam(ps_texs_arr, cams[rc], rc, _CUDADeviceNo,
-        //                    _nImgsInGPUAtTime, _scales, maxImageWidth, maxImageHeight, varianceWSH);
     }
 }
 
@@ -1107,8 +1097,8 @@ bool PlaneSweepingCuda::getSilhoueteMap(StaticVectorBool* oMap, int scale, int s
 
     CudaHostMemoryHeap<bool, 2> omap_hmh(CudaSize<2>(w / step, h / step));
 
-    ps_getSilhoueteMap(ps_texs_arr, &omap_hmh, w, h, scale - 1, _CUDADeviceNo,
-                       _nImgsInGPUAtTime, _scales, step, camId, maskColorRgb, _verbose);
+    ps_getSilhoueteMap( ps_texs_arr, &omap_hmh, w, h, scale - 1,
+                        step, camId, maskColorRgb, _verbose );
 
     for(int i = 0; i < (w / step) * (h / step); i++)
     {
