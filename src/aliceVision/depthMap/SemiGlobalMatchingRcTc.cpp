@@ -87,18 +87,18 @@ void SemiGlobalMatchingRcTc::computeDepthSimMapVolume(
 
     const int volume_offset = volDimX * volDimY * maxDimZ;
     // volumeMBinGPUMem =
-            sp->cps->sweepPixelsToVolume( _index_set,
-                                          volume_buf,
-                                          volume_offset,
-                                          volume_tmp_on_gpu,
-                                          volDimX, volDimY,
-                                          volStepXY,
-                                          _zDimsAtATime,
-                                          rcTcDepths,
-                                          rc, tc,
-                                          rcSilhoueteMap,
-                                          wsh, gammaC, gammaP, _scale, 1,
-                                          0.0f);
+            sp->cps.sweepPixelsToVolume( _index_set,
+                                         volume_buf,
+                                         volume_offset,
+                                         volume_tmp_on_gpu,
+                                         volDimX, volDimY,
+                                         volStepXY,
+                                         _zDimsAtATime,
+                                         rcTcDepths,
+                                         rc, tc,
+                                         rcSilhoueteMap,
+                                         wsh, gammaC, gammaP, _scale, 1,
+                                         0.0f);
 
     /*
      * TODO: This conversion operation on the host consumes a lot of time,

@@ -311,9 +311,9 @@ void ps_testCUDAdeviceNo(int CUDAdeviceNo)
     };
 }
 
-void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
-                        const cameraStruct& cam, int camId, int CUDAdeviceNo,
-                        int ncamsAllocated, int scales, int w, int h, int varianceWsh)
+void ps_deviceUpdateCam( Pyramid& ps_texs_arr,
+                         const cameraStruct& cam, int camId, int CUDAdeviceNo,
+                         int ncamsAllocated, int scales, int w, int h, int varianceWsh)
 {
     // std::cerr << std::endl << "Calling " << __FUNCTION__ << std::endl << "    for camera id " << camId << " and " << scales << " scales" << std::endl <<std::endl;
 
@@ -338,7 +338,7 @@ void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
         }
     }
 
-    ps_create_gaussian_arr( scales );
+    ps_create_gaussian_arr( CUDAdeviceNo, scales );
 
     // for each scale
     for(int scale = 1; scale < scales; scale++)

@@ -50,9 +50,9 @@ extern void ps_deviceAllocate(Pyramid& ps_texs_arr, int ncams, int width, int he
 
 extern void ps_testCUDAdeviceNo(int CUDAdeviceNo);
 
-extern void ps_deviceUpdateCam(Pyramid& ps_texs_arr,
-                               const cameraStruct& cam, int camId, int CUDAdeviceNo,
-                               int ncamsAllocated, int scales, int w, int h, int varianceWsh);
+extern void ps_deviceUpdateCam( Pyramid& ps_texs_arr,
+                                const cameraStruct& cam, int camId, int CUDAdeviceNo,
+                                int ncamsAllocated, int scales, int w, int h, int varianceWsh);
 
 extern void ps_deviceDeallocate(Pyramid& ps_texs_arr, int CUDAdeviceNo, int ncams, int scales);
 

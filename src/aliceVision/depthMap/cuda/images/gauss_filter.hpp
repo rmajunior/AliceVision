@@ -14,7 +14,7 @@ namespace depthMap {
 #define MAX_CONSTANT_GAUSS_SCALES   10
 #define MAX_CONSTANT_GAUSS_MEM_SIZE 128
 
-extern void ps_create_gaussian_arr( int scales );
+extern void ps_create_gaussian_arr( int deviceId, int scales );
 
 extern void ps_downscale_gauss( Pyramid& ps_texs_arr,
                                 int camId, int scale,

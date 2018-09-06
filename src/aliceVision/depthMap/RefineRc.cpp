@@ -166,7 +166,7 @@ DepthSimMap* RefineRc::refineAndFuseDepthSimMapCUDA(DepthSimMap* depthPixSizeMap
         depthSimMapFusedHPart->reserve(w11 * hPartHeight);
         depthSimMapFusedHPart->resize_with(w11 * hPartHeight, DepthSim(-1.0f, 1.0f));
 
-        sp->cps->fuseDepthSimMapsGaussianKernelVoting(w11, hPartHeight, depthSimMapFusedHPart, dataMapsHPart,
+        sp->cps.fuseDepthSimMapsGaussianKernelVoting(w11, hPartHeight, depthSimMapFusedHPart, dataMapsHPart,
                                                       _nSamplesHalf, _ndepthsToRefine, _sigma);
 
 #pragma omp parallel for
@@ -219,7 +219,7 @@ DepthSimMap* RefineRc::optimizeDepthSimMapCUDA(DepthSimMap* depthPixSizeMapVis,
         {
             int yFrom = part * hPart;
             int hPartAct = std::min(hPart, h11 - yFrom);
-            sp->cps->optimizeDepthSimMapGradientDescent(depthSimMapOptimized->dsm, dataMapsPtrs, rc, _nSamplesHalf,
+            sp->cps.optimizeDepthSimMapGradientDescent(depthSimMapOptimized->dsm, dataMapsPtrs, rc, _nSamplesHalf,
                                                         _ndepthsToRefine, _sigma, _niters, yFrom, hPartAct);
         }
 
@@ -325,7 +325,7 @@ void refineDepthMaps(int CUDADeviceNo, mvsUtils::MultiViewParams* mp, mvsUtils::
     int bandType = 0;
     mvsUtils::ImagesCache    ic(mp, bandType, true);
     PlaneSweepingCuda        cps(CUDADeviceNo, ic, mp, pc, sgmScale);
-    SemiGlobalMatchingParams sp(mp, pc, &cps);
+    SemiGlobalMatchingParams sp(mp, pc, cps);
 
     //////////////////////////////////////////////////////////////////////////////////////////
 

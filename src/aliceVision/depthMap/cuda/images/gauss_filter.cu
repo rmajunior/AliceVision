@@ -18,7 +18,7 @@ namespace depthMap {
 /*********************************************************************************
  * global / constant data structures
  *********************************************************************************/
-bool                          d_gaussianArrayInitialized = false;
+std::set<int>                 d_gaussianArrayInitialized;
 __device__ __constant__ int   d_gaussianArrayOffset[MAX_CONSTANT_GAUSS_SCALES];
 __device__ __constant__ float d_gaussianArray[MAX_CONSTANT_GAUSS_MEM_SIZE];
 
@@ -33,7 +33,7 @@ __global__ void downscale_gauss_smooth_lab_kernel(
 /*********************************************************************************
  * exported host function
  *********************************************************************************/
-__host__ void ps_create_gaussian_arr( int scales ) // float delta, int radius)
+__host__ void ps_create_gaussian_arr( int deviceId, int scales ) // float delta, int radius)
 {
     if( scales >= MAX_CONSTANT_GAUSS_SCALES )
     {
@@ -43,9 +43,9 @@ __host__ void ps_create_gaussian_arr( int scales ) // float delta, int radius)
 
     cudaError_t err;
 
-    if( d_gaussianArrayInitialized ) return;
+    if( d_gaussianArrayInitialized.find( deviceId ) != d_gaussianArrayInitialized.end() ) return;
 
-    d_gaussianArrayInitialized = true;
+    d_gaussianArrayInitialized.insert( deviceId );
 
     int*   h_gaussianArrayOffset;
     float* h_gaussianArray;

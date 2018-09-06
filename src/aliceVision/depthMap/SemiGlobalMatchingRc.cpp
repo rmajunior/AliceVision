@@ -47,7 +47,7 @@ SemiGlobalMatchingRc::SemiGlobalMatchingRc(bool doComputeDepthsAndResetTCams, in
     gammaC = (float)sp->mp->_ini.get<double>("semiGlobalMatching.gammaC", 5.5);
     gammaP = (float)sp->mp->_ini.get<double>("semiGlobalMatching.gammaP", 8.0);
 
-    // sp->cps->verbose = sp->mp->verbose; - already set in PlaneSweeping class constructor
+    // sp->cps.verbose = sp->mp->verbose; - already set in PlaneSweeping class constructor
 
     const IndexT viewId = sp->mp->getViewId(rc);
 
@@ -303,7 +303,7 @@ StaticVector<StaticVector<float>*>* SemiGlobalMatchingRc::computeAllDepthsAndRes
     for(int c = 0; c < tcams.size(); c++)
     {
         // depths of all meaningful points on the principal ray of the reference camera regarding the target camera tc
-        StaticVector<float>* tcdepths = sp->cps->getDepthsRcTc(rc, tcams[c], scale, midDepth, sp->rcTcDepthsHalfLimit);
+        StaticVector<float>* tcdepths = sp->cps.getDepthsRcTc(rc, tcams[c], scale, midDepth, sp->rcTcDepthsHalfLimit);
         if(sizeOfStaticVector<float>(tcdepths) < 50)
         {
             // fallback if we don't have enough valid samples over the epipolar line
@@ -313,8 +313,8 @@ StaticVector<StaticVector<float>*>* SemiGlobalMatchingRc::computeAllDepthsAndRes
                 tcdepths = nullptr;
             }
             float avMinDist, avMidDist, avMaxDist;
-            sp->cps->getMinMaxdepths(rc, tcams, avMinDist, avMidDist, avMaxDist);
-            tcdepths = sp->cps->getDepthsByPixelSize(rc, avMinDist, avMidDist, avMaxDist, scale, sp->rcDepthsCompStep);
+            sp->cps.getMinMaxdepths(rc, tcams, avMinDist, avMidDist, avMaxDist);
+            tcdepths = sp->cps.getDepthsByPixelSize(rc, avMinDist, avMidDist, avMaxDist, scale, sp->rcDepthsCompStep);
 
             if(sizeOfStaticVector<float>(tcdepths) < 50)
             {
@@ -566,13 +566,13 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
     const int volDimY = h;
     const int volDimZ = depths->size();
 
-    sp->cps->cameraToDevice( rc, tcams );
+    sp->cps.cameraToDevice( rc, tcams );
 
 // #define FORCE_ZDIM_LIMIT 32
 #undef  FORCE_ZDIM_LIMIT
 #ifndef FORCE_ZDIM_LIMIT
     const long gpu_bytes_reqd_per_plane = volDimX * volDimY * sizeof(float) * 2; // safety margin 100%
-    const long gpu_bytes_free = sp->cps->getDeviceMemoryInfo().x * 1024 * 1024;
+    const long gpu_bytes_free = sp->cps.getDeviceMemoryInfo().x * 1024 * 1024;
     int        zDimsAtATime = depths->size();
     const int  camsAtATime  = tcams.size();
     if( gpu_bytes_reqd_per_plane * zDimsAtATime * camsAtATime > gpu_bytes_free )
@@ -600,7 +600,7 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
         rcSilhoueteMap = new StaticVectorBool();
         rcSilhoueteMap->reserve(w * h);
         rcSilhoueteMap->resize_with(w * h, true);
-        sp->cps->getSilhoueteMap(rcSilhoueteMap, scale, step, sp->silhouetteMaskColor, rc);
+        sp->cps.getSilhoueteMap(rcSilhoueteMap, scale, step, sp->silhouetteMaskColor, rc);
     }
 
     std::cerr << "In " << __FUNCTION__ << std::endl
@@ -626,7 +626,7 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
                                              volDimY,
                                              zDimsAtATime, devid );
     std::vector<CudaDeviceMemoryPitched<float, 3>*> volume_tmp_on_gpu;
-    sp->cps->allocTempVolume( volume_tmp_on_gpu,
+    sp->cps.allocTempVolume( volume_tmp_on_gpu,
                               tcams.size(),
                               volDimX,
                               volDimY,
@@ -640,7 +640,7 @@ bool SemiGlobalMatchingRc::sgmrc(bool checkIfExists)
     SemiGlobalMatchingRcTc srt( index_set, subDepths, rc, tcams, scale, step, zDimsAtATime, sp, rcSilhoueteMap );
     srt.computeDepthSimMapVolume( simVolume, volume_tmp_on_gpu, wsh, gammaC, gammaP );
 
-    sp->cps->freeTempVolume( volume_tmp_on_gpu );
+    sp->cps.freeTempVolume( volume_tmp_on_gpu );
 
     index_set.erase( index_set.begin() );
     SemiGlobalMatchingVolume svol( volDimX, volDimY, volDimZ, zDimsAtATime, sp );
@@ -751,7 +751,7 @@ void computeDepthMapsPSSGM(int CUDADeviceNo, mvsUtils::MultiViewParams* mp, mvsU
     // load stuff on GPU memory and creates multi-level images and computes gradients
     PlaneSweepingCuda cps(CUDADeviceNo, ic, mp, pc, sgmScale);
     // init plane sweeping parameters
-    SemiGlobalMatchingParams sp(mp, pc, &cps);
+    SemiGlobalMatchingParams sp(mp, pc, cps);
 
     //////////////////////////////////////////////////////////////////////////////////////////
 

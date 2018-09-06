@@ -305,8 +305,8 @@ int PlaneSweepingCuda::addCam( int rc, int scale,
 
         cps_fillCamera( _camsBasesHst(0,oldestId), rc, mp, scale, calling_func );
         cps_fillCameraData( _ic, cams[oldestId], rc, mp, rcSilhoueteMap );
-        ps_deviceUpdateCam(ps_texs_arr, cams[oldestId], oldestId,
-                           _CUDADeviceNo, _nImgsInGPUAtTime, _scales, mp->getMaxImageWidth(), mp->getMaxImageHeight(), varianceWSH);
+        ps_deviceUpdateCam( ps_texs_arr, cams[oldestId], oldestId,
+                            _CUDADeviceNo, _nImgsInGPUAtTime, _scales, mp->getMaxImageWidth(), mp->getMaxImageHeight(), varianceWSH);
 
         if(_verbose)
             mvsUtils::printfElapsedTime(t1, "copy image from disk to GPU ");

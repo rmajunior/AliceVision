@@ -24,7 +24,7 @@ SemiGlobalMatchingVolume::SemiGlobalMatchingVolume(int _volDimX, int _volDimY, i
     , _volumeBestZ( nullptr )
 {
     {
-        Point3d dmi = sp->cps->getDeviceMemoryInfo();
+        Point3d dmi = sp->cps.getDeviceMemoryInfo();
         std::cerr << __FUNCTION__ << " it seems that we have " << dmi.x << " MB of device memory available" << std::endl;
 
         if(sp->mp->verbose)
@@ -120,7 +120,7 @@ void SemiGlobalMatchingVolume::SGMoptimizeVolumeStepZ(int rc, int volStepXY, int
 {
     long tall = clock();
 
-    sp->cps->SGMoptimizeSimVolume(rc, _volumeStepZ, volDimX, volDimY, volDimZ / volStepZ, volStepXY,
+    sp->cps.SGMoptimizeSimVolume(rc, _volumeStepZ, volDimX, volDimY, volDimZ / volStepZ, volStepXY,
                                   scale, sp->P1, sp->P2);
 
     if(sp->mp->verbose)
