@@ -134,7 +134,8 @@ static void cps_fillCameraData(mvsUtils::ImagesCache& ic, cameraStruct& cam, int
     //	cam->tex_hmh_g->getBuffer(),
     //	cam->tex_hmh_b->getBuffer(), mp->indexes[c], mp, true, 1, 0);
 
-    ic.refreshData(c);
+    // ic.refreshData(c);
+    mvsUtils::ImagesCache::ImgPtr img = ic.getImg( c );
 
     Pixel pix;
     if( rcSilhoueteMap == nullptr )
@@ -144,7 +145,7 @@ static void cps_fillCameraData(mvsUtils::ImagesCache& ic, cameraStruct& cam, int
             for(pix.x = 0; pix.x < mp->getWidth(c); pix.x++)
             {
                 uchar4& pix_rgba = ic.transposed ? (*cam.tex_rgba_hmh)(pix.x, pix.y) : (*cam.tex_rgba_hmh)(pix.y, pix.x);
-                const rgb& pc = ic.getPixelValue(pix, c);
+                const rgb& pc = img->get(pix.x, pix.y); //  ic.getPixelValue(pix, c);
                 pix_rgba.x = pc.r;
                 pix_rgba.y = pc.g;
                 pix_rgba.z = pc.b;
@@ -159,7 +160,7 @@ static void cps_fillCameraData(mvsUtils::ImagesCache& ic, cameraStruct& cam, int
             for(pix.x = 0; pix.x < mp->getWidth(c); pix.x++)
             {
                 uchar4& pix_rgba = ic.transposed ? (*cam.tex_rgba_hmh)(pix.x, pix.y) : (*cam.tex_rgba_hmh)(pix.y, pix.x);
-                const rgb& pc = ic.getPixelValue(pix, c);
+                const rgb& pc = img->get(pix.x, pix.y); //  ic.getPixelValue(pix, c);
                 pix_rgba.x = pc.r;
                 pix_rgba.y = pc.g;
                 pix_rgba.z = pc.b;
